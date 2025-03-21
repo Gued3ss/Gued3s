@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tetraedro Pedagógico Interativo</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to bottom, #2c3e50, #4a6572);
+            color: white;
+        }
+        
+        canvas {
+            display: block;
+        }
+        
+        #info {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-size: 1.5em;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        #tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 300px;
+            font-size: 14px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+        }
+        
+        #legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 250px;
+            font-size: 12px;
+            z-index: 100;
+        }
+        
+        #legend h3 {
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+        
+        #legend ul {
+            padding-left: 20px;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">Tetraedro Pedagógico Interativo</div>
+    <div id="tooltip"></div>
+    <div id="legend">
+        <h3>Pólos (Vértices):</h3>
+        <ul>
+            <li><span style="color: #ff6b6b;">Aprendiz</span></li>
+            <li><span style="color: #48dbfb;">Educador</span></li>
+            <li><span style="color: #1dd1a1;">Saber</span></li>
+            <li><span style="color: #feca57;">Grupo</span></li>
+        </ul>
+        <h3>Interações (Arestas):</h3>
+        <ul>
+            <li>Passe o mouse sobre os vértices e arestas para ver detalhes</li>
+            <li>Arraste para girar o tetraedro</li>
+        </ul>
+    </div>
+
+    <!-- Importação da biblioteca Three.js via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // Configurações globais
+        let scene, camera, renderer;
+        let tetrahedron, edgeObjects = [], vertexObjects = [], centerObject;
+        let raycaster, mouse;
+        let tooltip = document.getElementById('tooltip');
+        
+        // Informações dos vértices (pólos)
+        const vertices = [
+            { name: "Aprendiz", description: "Aluno que interage com o saber, o educador e o grupo através do ambiente", color: 0xff6b6b },
+            { name: "Educador", description: "Professor que elabora conteúdos e atua como tutor, facilitando a interação entre os elementos", color: 0x48dbfb },
+            { name: "Saber", description: "Conteúdo que é manipulado, acessado e compartilhado entre os diversos atores", color: 0x1dd1a1 },
+            { name: "Grupo", description: "Conjunto de aprendizes que participam coletivamente do processo pedagógico", color: 0xfeca57 }
+        ];
+        
+        // Informações das arestas (interações)
+        const edges = [
+            { 
+                vertices: [0, 3], // Aprendiz-Grupo
+                name: "Participar", 
+                description: "Enfatiza as atividades e o desenvolvimento de atitudes que a aquisição de conteúdo proporciona." 
+            },
+            { 
+                vertices: [1, 3], // Educador-Grupo
+                name: "Facilitar", 
+                description: "Consiste na intervenção do educador para remediar segundo objetivos fixados, ajudando o grupo em seu desenvolvimento." 
+            },
+            { 
+                vertices: [2, 3], // Saber-Grupo
+                name: "Compartilhar", 
+                description: "Aprendizagem mútua no centro do grupo, integrando e disseminando os saberes adquiridos." 
+            },
+            { 
+                vertices: [0, 1], // Educador-Aprendiz
+                name: "Ensinar/Aprender", 
+                description: "O educador elabora o conteúdo, mas também age como tutor em uma relação de mão dupla (interação)." 
+            },
+            { 
+                vertices: [1, 2], // Educador-Saber
+                name: "Criar/Adaptar", 
+                description: "O educador é o criador e adaptador do conteúdo a todos os alunos; atua como tutor quando as ajudas pedagógicas não são suficientes." 
+            },
+            { 
+                vertices: [0, 2], // Aprendiz-Saber
+                name: "Acessar/Construir", 
+                description: "O aprendiz acessa o saber por meio da orientação do educador e do grupo, mas também depende de sua autonomia." 
+            }
+        ];
+        
+        // Inicialização
+        function init() {
+            // Criar cena
+            scene = new THREE.Scene();
+            
+            // Criar câmera
+            const aspectRatio = window.innerWidth / window.innerHeight;
+            camera = new THREE.PerspectiveCamera(60, aspectRatio, 0.1, 1000);
+            camera.position.z = 7;
+            
+            // Criar renderizador
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true, 
+                alpha: true,
+                logarithmicDepthBuffer: true // Ajuda a resolver problemas de z-fighting
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x000000, 0); // Transparente
+            renderer.sortObjects = true; // Garantir que os objetos sejam ordenados por profundidade
+            document.body.appendChild(renderer.domElement);
+            
+            // Raycaster para interação
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            
+            // Criar o tetraedro
+            createTetrahedron();
+            
+            // Adicionar luzes
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
+            
+            // Adicionar eventos de mouse
+            window.addEventListener('mousemove', onMouseMove, false);
+            window.addEventListener('mousedown', onMouseDown, false);
+            window.addEventListener('mouseup', onMouseUp, false);
+            window.addEventListener('resize', onWindowResize, false);
+            
+            // Iniciar animação
+            animate();
+        }
+        
+        // Criação do tetraedro com vértices e arestas
+        function createTetrahedron() {
+            // Vértices para um tetraedro regular perfeitamente equilátero
+            // Calculados a partir das coordenadas de um tetraedro regular com arestas de comprimento 2√2
+            const vertexPositions = [
+                new THREE.Vector3(1, 1, 1),            // Vértice 0
+                new THREE.Vector3(1, -1, -1),          // Vértice 1
+                new THREE.Vector3(-1, 1, -1),          // Vértice 2
+                new THREE.Vector3(-1, -1, 1)           // Vértice 3
+            ];
+            
+            // Normalizar os vértices para a mesma distância do centro
+            const radius = 3; // Raio da esfera circunscrita
+            for (let i = 0; i < vertexPositions.length; i++) {
+                vertexPositions[i].normalize().multiplyScalar(radius);
+            }
+            
+            // Grupo para conter todos os objetos do tetraedro
+            tetrahedron = new THREE.Group();
+            scene.add(tetrahedron);
+            
+            // Criar vértices (esferas)
+            for (let i = 0; i < 4; i++) {
+                const vertexGeometry = new THREE.SphereGeometry(0.2, 32, 32);
+                const vertexMaterial = new THREE.MeshPhongMaterial({ 
+                    color: vertices[i].color,
+                    transparent: true,
+                    opacity: 1.0,
+                    // Desativa a renderização de faces traseiras
+                    side: THREE.FrontSide,
+                    // Permite depth-grading (objetos distantes ficam mais acinzentados)
+                    fog: true
+                });
+                
+                const vertex = new THREE.Mesh(vertexGeometry, vertexMaterial);
+                vertex.position.copy(vertexPositions[i]);
+                vertex.userData = { 
+                    type: 'vertex', 
+                    index: i,
+                    name: vertices[i].name,
+                    description: vertices[i].description,
+                    originalColor: vertices[i].color
+                };
+                
+                // Adicionar rótulo do vértice
+                const vertexLabel = createTextSprite(vertices[i].name, vertices[i].color);
+                vertexLabel.position.copy(vertexPositions[i]);
+                vertexLabel.position.multiplyScalar(1.2); // Afastar um pouco do vértice
+                vertexLabel.userData = {
+                    type: 'label',
+                    parentType: 'vertex',
+                    parentIndex: i
+                };
+                
+                tetrahedron.add(vertex);
+                tetrahedron.add(vertexLabel);
+                vertexObjects.push(vertex);
+            }
+            
+            // Criar arestas (linhas)
+            for (let i = 0; i < edges.length; i++) {
+                const startVertex = vertexPositions[edges[i].vertices[0]];
+                const endVertex = vertexPositions[edges[i].vertices[1]];
+                
+                // Criar geometria da linha
+                const edgeGeometry = new THREE.BufferGeometry().setFromPoints([startVertex, endVertex]);
+                const edgeMaterial = new THREE.LineBasicMaterial({ 
+                    color: 0xffffff, 
+                    linewidth: 2,
+                    opacity: 0.7,
+                    transparent: true,
+                    fog: true
+                });
+                
+                const edge = new THREE.Line(edgeGeometry, edgeMaterial);
+                edge.userData = { 
+                    type: 'edge', 
+                    index: i,
+                    name: edges[i].name,
+                    description: edges[i].description 
+                };
+                
+                // Criar ponto no meio da aresta para interação
+                const midPoint = new THREE.Vector3().addVectors(startVertex, endVertex).multiplyScalar(0.5);
+                const interactionPointGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+                const interactionPointMaterial = new THREE.MeshBasicMaterial({ 
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.5,
+                    fog: true
+                });
+                
+                const interactionPoint = new THREE.Mesh(interactionPointGeometry, interactionPointMaterial);
+                interactionPoint.position.copy(midPoint);
+                interactionPoint.userData = { 
+                    ...edge.userData,
+                    originalColor: 0xffffff
+                };
+                
+                // Criar rótulo da aresta
+                const edgeLabel = createTextSprite(edges[i].name, 0xffffff, 0.7);
+                edgeLabel.position.copy(midPoint);
+                // Mover o rótulo um pouco para fora para evitar sobreposição
+                const toCenter = midPoint.clone().normalize();
+                edgeLabel.position.add(toCenter.multiplyScalar(0.3));
+                edgeLabel.userData = {
+                    type: 'label',
+                    parentType: 'edge',
+                    parentIndex: i
+                };
+                
+                tetrahedron.add(edge);
+                tetrahedron.add(interactionPoint);
+                tetrahedron.add(edgeLabel);
+                edgeObjects.push(interactionPoint);
+            }
+            
+            // Criar objeto no centro representando o ambiente
+            const centerGeometry = new THREE.SphereGeometry(0.3, 32, 32);
+            const centerMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0xffffff,
+                emissive: 0x6c5ce7,
+                emissiveIntensity: 0.5,
+                transparent: true,
+                opacity: 0.9,
+                fog: true
+            });
+            
+            centerObject = new THREE.Mesh(centerGeometry, centerMaterial);
+            centerObject.userData = {
+                type: 'center',
+                name: 'ambiente',
+                description: 'Meio pelo qual todas as interações pedagógicas ocorrem, conectando todos os pólos do tetraedro.',
+                originalColor: 0x6c5ce7
+            };
+            
+            // Rótulo do centro
+            const centerLabel = createTextSprite('ambiente', 0x6c5ce7);
+            centerLabel.position.y = 0.5;
+            centerLabel.userData = {
+                type: 'label',
+                parentType: 'center'
+            };
+            
+            tetrahedron.add(centerObject);
+            tetrahedron.add(centerLabel);
+            
+            // Adicionar neblina (fog) à cena para o efeito de profundidade
+            scene.fog = new THREE.Fog(0x2c3e50, 7, 20);
+        }
+        
+        // Função para criar sprites de texto
+        function createTextSprite(text, color = 0xffffff, opacity = 1.0) {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 256;
+            canvas.height = 128;
+            
+            context.font = '24px Arial';
+            context.fillStyle = 'rgba(255, 255, 255, ' + opacity + ')';
+            context.textAlign = 'center';
+            context.fillText(text, 128, 64);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            
+            const spriteMaterial = new THREE.SpriteMaterial({ 
+                map: texture,
+                transparent: true,
+                opacity: opacity,
+                sizeAttenuation: true, // Importante para o efeito de profundidade
+                depthTest: true,
+                depthWrite: false,
+                fog: true // Aplicar fog ao sprite
+            });
+            
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.scale.set(2, 1, 1);
+            
+            return sprite;
+        }
+        
+        // Função para atualizar o efeito de profundidade nos objetos
+        function updateDepthEffect() {
+            // Converter o vetor da câmera para o sistema de coordenadas local do tetraedro
+            const cameraDirection = new THREE.Vector3(0, 0, -1);
+            cameraDirection.applyQuaternion(camera.quaternion);
+            
+            // Para cada vértice, calcular a distância projetada na direção da câmera
+            for (let i = 0; i < vertexObjects.length; i++) {
+                const vertex = vertexObjects[i];
+                const worldPosition = new THREE.Vector3();
+                vertex.getWorldPosition(worldPosition);
+                
+                // Calcular distância do objeto à câmera
+                const distanceToCamera = worldPosition.distanceTo(camera.position);
+                
+                // Calcular fator de opacidade baseado na distância (quanto mais longe, mais transparente)
+                const opacityFactor = Math.max(0.3, 1 - (distanceToCamera - 5) / 10);
+                
+                // Calcular cor ajustada (mais cinza quando mais distante)
+                const originalColor = new THREE.Color(vertex.userData.originalColor);
+                const grayColor = new THREE.Color(0x888888);
+                const mixedColor = originalColor.clone().lerp(grayColor, 1 - opacityFactor);
+                
+                // Aplicar cores e opacidade
+                vertex.material.color.copy(mixedColor);
+                vertex.material.opacity = opacityFactor;
+            }
+            
+            // Fazer o mesmo para os pontos de interação nas arestas
+            for (let i = 0; i < edgeObjects.length; i++) {
+                const interactionPoint = edgeObjects[i];
+                const worldPosition = new THREE.Vector3();
+                interactionPoint.getWorldPosition(worldPosition);
+                
+                const distanceToCamera = worldPosition.distanceTo(camera.position);
+                const opacityFactor = Math.max(0.2, 1 - (distanceToCamera - 5) / 10);
+                
+                interactionPoint.material.opacity = 0.5 * opacityFactor;
+            }
+            
+            // E para o objeto central
+            const centerWorldPosition = new THREE.Vector3();
+            centerObject.getWorldPosition(centerWorldPosition);
+            
+            const centerDistanceToCamera = centerWorldPosition.distanceTo(camera.position);
+            const centerOpacityFactor = Math.max(0.3, 1 - (centerDistanceToCamera - 5) / 10);
+            
+            const centerOriginalColor = new THREE.Color(centerObject.userData.originalColor);
+            const centerGrayColor = new THREE.Color(0x444444);
+            const centerMixedColor = centerOriginalColor.clone().lerp(centerGrayColor, 1 - centerOpacityFactor);
+            
+            centerObject.material.emissive.copy(centerMixedColor);
+            centerObject.material.opacity = centerOpacityFactor;
+        }
+        
+        // Eventos de mouse
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let selectedObject = null;
+        
+        function onMouseMove(event) {
+            // Atualizar posição do mouse
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            // Verificar interseções para mostrar tooltips
+            raycaster.setFromCamera(mouse, camera);
+            
+            // Interseções com todos os objetos interativos
+            const intersectObjects = [...vertexObjects, ...edgeObjects, centerObject];
+            const intersects = raycaster.intersectObjects(intersectObjects);
+            
+            if (intersects.length > 0 && !isDragging) {
+                const object = intersects[0].object;
+                
+                // Mostrar tooltip com informações do objeto
+                tooltip.innerHTML = `<strong>${object.userData.name}</strong><br>${object.userData.description}`;
+                tooltip.style.opacity = '1';
+                tooltip.style.left = event.clientX + 10 + 'px';
+                tooltip.style.top = event.clientY + 10 + 'px';
+                
+                document.body.style.cursor = 'pointer';
+                selectedObject = object;
+            } else {
+                // Esconder tooltip se não houver interseção
+                tooltip.style.opacity = '0';
+                document.body.style.cursor = 'auto';
+                selectedObject = null;
+            }
+            
+            // Rotação durante o arrasto
+            if (isDragging) {
+                const deltaX = event.clientX - previousMousePosition.x;
+                const deltaY = event.clientY - previousMousePosition.y;
+                
+                tetrahedron.rotation.y += deltaX * 0.01;
+                tetrahedron.rotation.x += deltaY * 0.01;
+                
+                previousMousePosition = {
+                    x: event.clientX,
+                    y: event.clientY
+                };
+            }
+        }
+        
+        function onMouseDown(event) {
+            previousMousePosition = {
+                x: event.clientX,
+                y: event.clientY
+            };
+            
+            isDragging = true;
+            tooltip.style.opacity = '0';
+        }
+        
+        function onMouseUp() {
+            isDragging = false;
+            
+            // Mostrar tooltip novamente se o mouse estiver sobre um objeto
+            if (selectedObject) {
+                tooltip.style.opacity = '1';
+            }
+        }
+        
+        // Redimensionamento da janela
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Loop de animação
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Atualizar efeito de profundidade
+            updateDepthEffect();
+            
+            // Pequena rotação automática quando não está arrastando
+            if (!isDragging) {
+                tetrahedron.rotation.y += 0.002;
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Iniciar aplicação
+        window.onload = init;
+    </script>
+</body>
+</html>
