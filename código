@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tanque dos Peixinhos - Simulador de Investimentos</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background-color: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 1.5rem 0;
+            margin-bottom: 2rem;
+            border-radius: 6px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        h2 {
+            color: #2c3e50;
+            margin: 1.5rem 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #3498db;
+        }
+        
+        h3 {
+            color: #3498db;
+            margin-bottom: 1rem;
+        }
+        
+        .section {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .startups-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .startup-card {
+            border: 1px solid #e1e1e1;
+            border-radius: 6px;
+            padding: 1rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .startup-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .startup-card h4 {
+            color: #3498db;
+            margin-bottom: 0.5rem;
+        }
+        
+        .investors-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .investor-card {
+            border: 1px solid #e1e1e1;
+            border-radius: 6px;
+            padding: 1.5rem;
+            background-color: #f8f9fa;
+        }
+        
+        .investor-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: #2c3e50;
+        }
+        
+        .investment-form {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px dashed #ccc;
+        }
+        
+        .investment-form:last-child {
+            border-bottom: none;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        select, input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+        
+        select:focus, input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        .btn-container {
+            text-align: center;
+            margin: 2rem 0;
+        }
+        
+        .btn-simulate {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1.2rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        .btn-simulate:hover {
+            background-color: #2980b9;
+        }
+        
+        .results-container {
+            display: none;
+            margin-top: 2rem;
+        }
+        
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 2rem;
+        }
+        
+        .results-table th, .results-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .results-table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        
+        .results-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .positive {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        
+        .negative {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .chart-wrapper {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .error {
+            color: #e74c3c;
+            font-size: 0.9rem;
+            margin-top: -0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .risk-info {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        @media (max-width: 768px) {
+            .startups-container,
+            .investors-container,
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-wrapper {
+                padding: 1rem;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Tanque dos Peixinhos</h1>
+            <p>Simulador de Investimentos em Startups feito por Gustavo Guedes</p>
+        </header>
+        
+        <section class="section">
+            <h2>Startups Disponíveis</h2>
+            <div class="risk-info">
+                <strong>Atenção:</strong> Investimentos em startups envolvem riscos significativos. O desempenho pode variar drasticamente, incluindo a possibilidade de perda total do investimento.
+            </div>
+            <div class="startups-container" id="startups-list">
+                <!-- Startups serão inseridas aqui via JavaScript -->
+            </div>
+        </section>
+        
+        <section class="section">
+            <h2>Faça seus Investimentos</h2>
+            <div class="investors-container" id="investors-container">
+                <!-- Formulários de investimento serão inseridos aqui via JavaScript -->
+            </div>
+        </section>
+        
+        <div class="btn-container">
+            <button id="simulate-btn" class="btn-simulate">Simular Investimentos</button>
+        </div>
+        
+        <section class="section results-container" id="results-section">
+            <h2>Resultados da Simulação</h2>
+            
+            <h3>Tabela de Resultados</h3>
+            <div class="table-wrapper">
+                <table class="results-table" id="results-table">
+                    <thead>
+                        <tr>
+                            <th>Investidor</th>
+                            <th>Startup</th>
+                            <th>Valor Investido</th>
+                            <th>Fator de Crescimento</th>
+                            <th>Retorno Final</th>
+                            <th>Lucro/Prejuízo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-body">
+                        <!-- Resultados serão inseridos aqui via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="charts-container">
+                <div class="chart-wrapper">
+                    <h3>Evolução do Desempenho das Startups</h3>
+                    <canvas id="performance-chart"></canvas>
+                </div>
+                
+                <div class="chart-wrapper">
+                    <h3>Comparação de Investimentos e Retornos</h3>
+                    <canvas id="returns-chart"></canvas>
+                </div>
+            </div>
+        </section>
+    </div>
+    
+    <script>
+        // Dados das startups
+        const startups = [
+            {
+                id: 1,
+                name: "LixoBicho",
+                description: "Soluções sustentáveis para gestão de resíduos urbanos",
+                projection: "Alto potencial, mas sujeito a mudanças regulatórias",
+                minValue: 50000,
+                target: "Empresas de médio e grande porte e prefeituras",
+                volatility: 0 // Alta volatilidade
+            },
+            {
+                id: 2,
+                name: "TatieleBetê",
+                description: "Aplicativo de monitoramento de saúde com IA",
+                projection: "Crescimento moderado com alta competição no setor",
+                minValue: 75000,
+                target: "Usuários de 19 a 30 anos preocupados com saúde preventiva",
+                volatility: 20 // Volatilidade média-alta
+            },
+            {
+                id: 3,
+                name: "MiltonApp",
+                description: "Plataforma educacional focada em educação financeira",
+                projection: "Mercado em expansão, mas taxa de retenção incerta",
+                minValue: 60000,
+                target: "Jovens adultos e profissionais em início de carreira",
+                volatility: 30 // Volatilidade muito alta
+            },
+            {
+                id: 4,
+                name: "MechaFarm",
+                description: "Sistema de automação para pequenos produtores rurais",
+                projection: "Adoção lenta, mas base de clientes leal",
+                minValue: 80000,
+                target: "Pequenos e médios produtores agrícolas",
+                volatility: 5 // Volatilidade média
+            },
+            {
+                id: 5,
+                name: "AiFoge",
+                description: "Plataforma de logística para entregas urbanas",
+                projection: "Mercado saturado com altos custos operacionais",
+                minValue: 70000,
+                target: "Comércios locais e serviços de delivery",
+                volatility: 10 // Alta volatilidade
+            }
+        ];
+        
+        // Dados dos investidores
+        const investors = [
+            { id: 1, name: "Luiza Trajano" },
+            { id: 2, name: "Chieko Aoki" },
+            { id: 3, name: "Bel Pesce" }
+        ];
+        
+        // Carregar conteúdo inicial
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStartups();
+            loadInvestorForms();
+            
+            // Adicionar evento ao botão de simulação
+            document.getElementById('simulate-btn').addEventListener('click', simulateInvestments);
+        });
+        
+        // Função para carregar as startups na interface
+        function loadStartups() {
+            const startupsContainer = document.getElementById('startups-list');
+            
+            startups.forEach(startup => {
+                const startupCard = document.createElement('div');
+                startupCard.className = 'startup-card';
+                startupCard.innerHTML = `
+                    <h4>${startup.name}</h4>
+                    <p><strong>Descrição:</strong> ${startup.description}</p>
+                    <p><strong>Projeção:</strong> ${startup.projection}</p>
+                    <p><strong>Valor Mínimo:</strong> R$ ${startup.minValue.toLocaleString('pt-BR')}</p>
+                    <p><strong>Público-alvo:</strong> ${startup.target}</p>
+                `;
+                startupsContainer.appendChild(startupCard);
+            });
+        }
+        
+        // Função para carregar os formulários de investimento
+        function loadInvestorForms() {
+            const investorsContainer = document.getElementById('investors-container');
+            
+            investors.forEach(investor => {
+                const investorCard = document.createElement('div');
+                investorCard.className = 'investor-card';
+                investorCard.innerHTML = `
+                    <div class="investor-name">${investor.name}</div>
+                    
+                    <div class="investment-form">
+                        <label>Primeiro Investimento</label>
+                        <select id="startup-${investor.id}-1" class="startup-select">
+                            <option value="">Selecione uma startup</option>
+                            ${startups.map(startup => `<option value="${startup.id}">${startup.name} (Mín: R$ ${startup.minValue.toLocaleString('pt-BR')})</option>`).join('')}
+                        </select>
+                        <label>Valor do Investimento (R$)</label>
+                        <input type="number" id="value-${investor.id}-1" min="0" step="1000" placeholder="Digite o valor">
+                        <div id="error-${investor.id}-1" class="error"></div>
+                    </div>
+                    
+                    <div class="investment-form">
+                        <label>Segundo Investimento</label>
+                        <select id="startup-${investor.id}-2" class="startup-select">
+                            <option value="">Selecione uma startup</option>
+                            ${startups.map(startup => `<option value="${startup.id}">${startup.name} (Mín: R$ ${startup.minValue.toLocaleString('pt-BR')})</option>`).join('')}
+                        </select>
+                        <label>Valor do Investimento (R$)</label>
+                        <input type="number" id="value-${investor.id}-2" min="0" step="1000" placeholder="Digite o valor">
+                        <div id="error-${investor.id}-2" class="error"></div>
+                    </div>
+                `;
+                investorsContainer.appendChild(investorCard);
+            });
+        }
+        
+        // Função para validar os investimentos
+        function validateInvestments() {
+            let isValid = true;
+            let investments = [];
+            
+            // Limpar erros anteriores
+            document.querySelectorAll('.error').forEach(el => el.textContent = '');
+            
+            investors.forEach(investor => {
+                for (let i = 1; i <= 2; i++) {
+                    const startupSelect = document.getElementById(`startup-${investor.id}-${i}`);
+                    const valueInput = document.getElementById(`value-${investor.id}-${i}`);
+                    const errorDiv = document.getElementById(`error-${investor.id}-${i}`);
+                    
+                    const startupId = parseInt(startupSelect.value);
+                    const value = parseFloat(valueInput.value);
+                    
+                    if (!startupId) {
+                        errorDiv.textContent = "Selecione uma startup";
+                        isValid = false;
+                        continue;
+                    }
+                    
+                    if (!value || isNaN(value) || value <= 0) {
+                        errorDiv.textContent = "Informe um valor válido";
+                        isValid = false;
+                        continue;
+                    }
+                    
+                    const startup = startups.find(s => s.id === startupId);
+                    if (value < startup.minValue) {
+                        errorDiv.textContent = `Valor mínimo: R$ ${startup.minValue.toLocaleString('pt-BR')}`;
+                        isValid = false;
+                        continue;
+                    }
+                    
+                    investments.push({
+                        investorId: investor.id,
+                        investorName: investor.name,
+                        startupId: startupId,
+                        startupName: startup.name,
+                        value: value,
+                        volatility: startup.volatility
+                    });
+                }
+            });
+            
+            return { isValid, investments };
+        }
+        
+        // Função para simular os investimentos
+        function simulateInvestments() {
+            const { isValid, investments } = validateInvestments();
+            
+            if (!isValid) {
+                return;
+            }
+            
+            // Configurações da simulação
+            const months = 10;
+            const results = [];
+            const performanceData = {};
+            
+            // Inicializar dados de desempenho
+            startups.forEach(startup => {
+                performanceData[startup.id] = {
+                    label: startup.name,
+                    data: [100], // Valor base inicial (100%)
+                    borderColor: getRandomColor(),
+                    tension: 0.1
+                };
+            });
+            
+            // Simular eventos de mercado (afetam todas as startups de forma semelhante)
+            const marketEvents = [];
+            for (let month = 1; month <= months; month++) {
+                // Evento de mercado entre -15% e +15%
+                marketEvents.push((Math.random() * 20) - 5);
+            }
+            
+            // Simular desempenho mensal para cada startup
+            for (let month = 1; month <= months; month++) {
+                startups.forEach(startup => {
+                    const lastValue = performanceData[startup.id].data[month - 1];
+                    
+                    // Eventos específicos da startup (mais extremos agora)
+                    // Variação baseada na volatilidade da startup
+                    const maxVariation = startup.volatility; // Usando a volatilidade definida para cada startup
+                    
+                    // 10% de chance de evento extremamente negativo (falha grave)
+                    let startupVariation;
+                    if (Math.random() < 0.10) {
+                        startupVariation = -maxVariation * 1.5; // Falha grave: até -45% para startups de alta volatilidade
+                    } 
+                    // 5% de chance de evento extremamente positivo
+                    else if (Math.random() < 0.05) {
+                        startupVariation = maxVariation * 2; // Sucesso excepcional: até +60% para startups de alta volatilidade
+                    }
+                    // Variação normal
+                    else {
+                        startupVariation = (Math.random() * 2 * maxVariation) - maxVariation;
+                    }
+                    
+                    // Combinando evento de mercado com evento específico da startup
+                    const totalVariation = marketEvents[month - 1] + startupVariation;
+                    
+                    // Calculando novo valor
+                    const newValue = lastValue * (1 + totalVariation/100);
+                    
+                    // Garantir que o valor não seja negativo
+                    const finalValue = Math.max(5, newValue); // Mínimo de 5% do valor inicial
+                    
+                    performanceData[startup.id].data.push(parseFloat(finalValue.toFixed(2)));
+                });
+            }
+            
+            // Calcular resultados dos investimentos
+            investments.forEach(investment => {
+                const startup = startups.find(s => s.id === investment.startupId);
+                const performanceValues = performanceData[startup.id].data;
+                const growthFactor = performanceValues[months] / performanceValues[0];
+                const finalReturn = investment.value * growthFactor;
+                const profit = finalReturn - investment.value;
+                
+                results.push({
+                    investorName: investment.investorName,
+                    startupName: investment.startupName,
+                    value: investment.value,
+                    growthFactor: growthFactor.toFixed(2),
+                    finalReturn: finalReturn.toFixed(2),
+                    profit: profit.toFixed(2)
+                });
+            });
+            
+            // Exibir resultados
+            displayResults(results);
+            
+            // Gerar gráficos
+            generatePerformanceChart(performanceData, months);
+            generateReturnsChart(results);
+            
+            // Exibir seção de resultados
+            document.getElementById('results-section').style.display = 'block';
+            
+            // Rolar para os resultados
+            document.getElementById('results-section').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // Função para exibir os resultados
+        function displayResults(results) {
+            const resultsBody = document.getElementById('results-body');
+            resultsBody.innerHTML = '';
+            
+            results.forEach(result => {
+                const row = document.createElement('tr');
+                
+                const profitClass = parseFloat(result.profit) >= 0 ? 'positive' : 'negative';
+                const profitPrefix = parseFloat(result.profit) >= 0 ? '+' : '';
+                
+                row.innerHTML = `
+                    <td>${result.investorName}</td>
+                    <td>${result.startupName}</td>
+                    <td>R$ ${parseFloat(result.value).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                    <td>${result.growthFactor}x</td>
+                    <td>R$ ${parseFloat(result.finalReturn).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                    <td class="${profitClass}">${profitPrefix}R$ ${parseFloat(result.profit).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                `;
+                
+                resultsBody.appendChild(row);
+            });
+        }
+        
+        // Função para gerar o gráfico de desempenho
+        function generatePerformanceChart(performanceData, months) {
+            const ctx = document.getElementById('performance-chart').getContext('2d');
+            
+            if (window.performanceChart) {
+                window.performanceChart.destroy();
+            }
+            
+            const labels = Array.from({length: months + 1}, (_, i) => `Mês ${i}`);
+            
+            window.performanceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: Object.values(performanceData)
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Evolução do Desempenho das Startups (%)'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        legend: {
+                            position: 'bottom'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Função para gerar o gráfico de comparação de retornos
+        function generateReturnsChart(results) {
+            const ctx = document.getElementById('returns-chart').getContext('2d');
+            
+            if (window.returnsChart) {
+                window.returnsChart.destroy();
+            }
+            
+            const investedValues = [];
+            const returnValues = [];
+            const labels = [];
+            
+            results.forEach(result => {
+                labels.push(`${result.investorName} - ${result.startupName}`);
+                investedValues.push(parseFloat(result.value));
+                returnValues.push(parseFloat(result.finalReturn));
+            });
+            
+            window.returnsChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Valor Investido',
+                            data: investedValues,
+                            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Retorno Final',
+                            data: returnValues,
+                            backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Comparação entre Investimentos e Retornos'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        legend: {
+                            position: 'bottom'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return 'R$ ' + value.toLocaleString('pt-BR');
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Função para gerar cores aleatórias
+        function getRandomColor() {
+            const colors = [
+                'rgb(255, 99, 132)',
+                'rgb(54, 162, 235)',
+                'rgb(255, 206, 86)',
+                'rgb(75, 192, 192)',
+                'rgb(153, 102, 255)',
+                'rgb(255, 159, 64)',
+                'rgb(199, 199, 199)',
+                'rgb(83, 102, 255)',
+                'rgb(40, 159, 64)',
+                'rgb(210, 105, 30)'
+            ];
+            
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+    </script>
+</body>
+</html>
