@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Órbitas Planetárias</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #fff;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #canvas-container {
+            flex-grow: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            background-color: #000;
+        }
+
+        .controls {
+            background-color: #222;
+            padding: 10px;
+            border-top: 1px solid #444;
+        }
+
+        .control-group {
+            margin-bottom: 10px;
+        }
+
+        h1, h2 {
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        h2 {
+            font-size: 1.2em;
+            margin-top: 5px;
+            margin-bottom: 10px;
+        }
+
+        label {
+            display: inline-block;
+            width: 120px;
+            margin-right: 10px;
+        }
+
+        input[type="range"] {
+            width: 150px;
+            vertical-align: middle;
+        }
+
+        input[type="number"] {
+            width: 60px;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+        }
+
+        .panel {
+            background-color: #333;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .color-picker {
+            height: 25px;
+            width: 25px;
+            padding: 0;
+            border: none;
+            vertical-align: middle;
+        }
+
+        .tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px;
+            border-radius: 5px;
+            pointer-events: none;
+            z-index: 100;
+            display: none;
+        }
+
+        .instructions {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Simulador de Órbitas Planetárias</h1>
+        
+        <div id="canvas-container">
+            <canvas id="simulationCanvas"></canvas>
+            <div class="tooltip" id="tooltip"></div>
+        </div>
+        
+        <div class="controls">
+            <div class="grid">
+                <div class="panel">
+                    <h2>Configurações do Planeta</h2>
+                    <div class="control-group">
+                        <label for="planetMass">Massa:</label>
+                        <input type="range" id="planetMass" min="1" max="100" value="10">
+                        <span id="planetMassValue">10</span>
+                    </div>
+                    <div class="control-group">
+                        <label for="planetRadius">Raio:</label>
+                        <input type="range" id="planetRadius" min="2" max="30" value="10">
+                        <span id="planetRadiusValue">10</span> px
+                    </div>
+                    <div class="control-group">
+                        <label for="initialVelocityX">Velocidade X:</label>
+                        <input type="range" id="initialVelocityX" min="-5" max="5" value="0" step="0.1">
+                        <span id="initialVelocityXValue">0</span>
+                    </div>
+                    <div class="control-group">
+                        <label for="initialVelocityY">Velocidade Y:</label>
+                        <input type="range" id="initialVelocityY" min="-5" max="5" value="0" step="0.1">
+                        <span id="initialVelocityYValue">0</span>
+                    </div>
+                    <div class="control-group">
+                        <label for="planetColor">Cor:</label>
+                        <input type="color" id="planetColor" class="color-picker" value="#3498db">
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <h2>Configurações da Simulação</h2>
+                    <div class="control-group">
+                        <label for="gravityConstant">Constante G:</label>
+                        <input type="range" id="gravityConstant" min="0.1" max="10" value="1" step="0.1">
+                        <span id="gravityConstantValue">1</span>
+                    </div>
+                    <div class="control-group">
+                        <label for="timeStep">Passo de tempo:</label>
+                        <input type="range" id="timeStep" min="0.01" max="1" value="0.1" step="0.01">
+                        <span id="timeStepValue">0.1</span>
+                    </div>
+                    <div class="control-group">
+                        <label for="trailLength">Comprimento do rastro:</label>
+                        <input type="range" id="trailLength" min="0" max="1000" value="200">
+                        <span id="trailLengthValue">200</span>
+                    </div>
+                    <div class="control-group">
+                        <button id="clearPlanets">Limpar Planetas</button>
+                        <button id="resetSimulation">Resetar Simulação</button>
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <h2>Corpos Celestes Fixos</h2>
+                    <div class="control-group">
+                        <label for="starMass">Massa da Estrela:</label>
+                        <input type="range" id="starMass" min="100" max="2000" value="500">
+                        <span id="starMassValue">500</span>
+                    </div>
+                    <div class="control-group">
+                        <button id="addStar">Adicionar Estrela</button>
+                        <button id="toggleStar">Mostrar/Ocultar</button>
+                    </div>
+                    <div class="instructions">
+                        <p>Instruções:</p>
+                        <ul>
+                            <li>Clique em uma posição vazia para adicionar um planeta</li>
+                            <li>Configure os parâmetros do planeta nas opções acima</li>
+                            <li>Passe o mouse sobre um planeta para ver seus detalhes</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuração inicial do canvas e variáveis
+        const canvas = document.getElementById('simulationCanvas');
+        const ctx = canvas.getContext('2d');
+        const tooltip = document.getElementById('tooltip');
+        let width, height;
+        
+        // Arrays para armazenar planetas e seus rastros
+        let planets = [];
+        let stars = [];
+        let trails = [];
+        
+        // Controladores de interação
+        let draggingPlanet = null;
+        let mouseX = 0;
+        let mouseY = 0;
+        
+        // Constantes físicas e configurações
+        let G = 1; // Constante gravitacional
+        let timeStep = 0.1; // Passo de tempo na simulação
+        let trailLength = 200; // Comprimento do rastro
+        let showStars = true;
+        
+        // Função para redimensionar o canvas
+        function resizeCanvas() {
+            const container = document.getElementById('canvas-container');
+            width = container.clientWidth;
+            height = container.clientHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+        
+        // Inicializar o canvas
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        
+        // Classe Planet para representar corpos celestes
+        class Planet {
+            constructor(x, y, mass, radius, color, vx = 0, vy = 0, isFixed = false) {
+                this.x = x;
+                this.y = y;
+                this.mass = mass;
+                this.radius = radius;
+                this.color = color;
+                this.vx = vx;
+                this.vy = vy;
+                this.ax = 0;
+                this.ay = 0;
+                this.trail = [];
+                this.isFixed = isFixed;
+            }
+            
+            // Método para calcular a força gravitacional
+            calculateForce(planet) {
+                // Lei da gravitação universal de Newton: F = G * (m1 * m2) / r²
+                const dx = planet.x - this.x;
+                const dy = planet.y - this.y;
+                const distanceSq = dx * dx + dy * dy;
+                const distance = Math.sqrt(distanceSq);
+                
+                // Evitar divisão por zero e limitar forças muito grandes
+                if (distance < this.radius + planet.radius) {
+                    return { fx: 0, fy: 0 };
+                }
+                
+                // Calcular a magnitude da força
+                const forceMagnitude = G * this.mass * planet.mass / distanceSq;
+                
+                // Decompor a força em componentes x e y
+                const fx = forceMagnitude * dx / distance;
+                const fy = forceMagnitude * dy / distance;
+                
+                return { fx, fy };
+            }
+            
+            // Método para atualizar a posição do planeta
+            update(allPlanets, allStars) {
+                if (this.isFixed) return;
+                
+                this.ax = 0;
+                this.ay = 0;
+                
+                // Calcular forças de todos os outros planetas
+                for (let planet of allPlanets) {
+                    if (planet !== this) {
+                        const force = this.calculateForce(planet);
+                        this.ax += force.fx / this.mass;
+                        this.ay += force.fy / this.mass;
+                    }
+                }
+                
+                // Calcular forças de todas as estrelas
+                for (let star of allStars) {
+                    const force = this.calculateForce(star);
+                    this.ax += force.fx / this.mass;
+                    this.ay += force.fy / this.mass;
+                }
+                
+                // Atualizar velocidade usando aceleração (método de Euler)
+                this.vx += this.ax * timeStep;
+                this.vy += this.ay * timeStep;
+                
+                // Atualizar posição usando velocidade
+                this.x += this.vx * timeStep;
+                this.y += this.vy * timeStep;
+                
+                // Adicionar posição atual ao rastro
+                this.trail.push({ x: this.x, y: this.y });
+                
+                // Limitar o tamanho do rastro
+                if (this.trail.length > trailLength) {
+                    this.trail.shift();
+                }
+            }
+            
+            // Método para renderizar o planeta e seu rastro
+            draw(ctx) {
+                // Desenhar o rastro
+                if (this.trail.length > 1) {
+                    ctx.beginPath();
+                    ctx.moveTo(this.trail[0].x, this.trail[0].y);
+                    
+                    for (let i = 1; i < this.trail.length; i++) {
+                        ctx.lineTo(this.trail[i].x, this.trail[i].y);
+                    }
+                    
+                    ctx.strokeStyle = this.color + '80'; // Adicionar transparência
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+                
+                // Desenhar o planeta
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                
+                // Adicionar um efeito de brilho para estrelas
+                if (this.isFixed && this.mass > 100) {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius * 1.2, 0, Math.PI * 2);
+                    const gradient = ctx.createRadialGradient(
+                        this.x, this.y, this.radius / 2,
+                        this.x, this.y, this.radius * 1.2
+                    );
+                    gradient.addColorStop(0, this.color);
+                    gradient.addColorStop(1, 'transparent');
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                }
+            }
+            
+            // Método para verificar se o mouse está sobre o planeta
+            containsPoint(x, y) {
+                const dx = this.x - x;
+                const dy = this.y - y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                return distance <= this.radius;
+            }
+        }
+        
+        // Função principal de animação
+        function animate() {
+            // Limpar o canvas
+            ctx.clearRect(0, 0, width, height);
+            
+            // Atualizar e desenhar estrelas
+            if (showStars) {
+                for (let star of stars) {
+                    star.draw(ctx);
+                }
+            }
+            
+            // Atualizar e desenhar planetas
+            for (let i = planets.length - 1; i >= 0; i--) {
+                const planet = planets[i];
+                
+                // Verificar se o planeta está fora dos limites
+                if (planet.x < -width || planet.x > width * 2 || 
+                    planet.y < -height || planet.y > height * 2) {
+                    planets.splice(i, 1);
+                    continue;
+                }
+                
+                planet.update(planets, stars);
+                planet.draw(ctx);
+            }
+            
+            // Continuar a animação
+            requestAnimationFrame(animate);
+        }
+        
+        // Iniciar a animação
+        animate();
+        
+        // Função para criar um novo planeta
+        function createPlanet(x, y) {
+            const mass = parseFloat(document.getElementById('planetMass').value);
+            const radius = parseFloat(document.getElementById('planetRadius').value);
+            const vx = parseFloat(document.getElementById('initialVelocityX').value);
+            const vy = parseFloat(document.getElementById('initialVelocityY').value);
+            const color = document.getElementById('planetColor').value;
+            
+            const planet = new Planet(x, y, mass, radius, color, vx, vy);
+            planets.push(planet);
+            return planet;
+        }
+        
+        // Função para criar uma estrela
+        function createStar(x, y) {
+            const mass = parseFloat(document.getElementById('starMass').value);
+            const radius = Math.sqrt(mass) / 2; // Raio proporcional à raiz quadrada da massa
+            const star = new Planet(x, y, mass, radius, '#FFD700', 0, 0, true);
+            stars.push(star);
+            return star;
+        }
+        
+        // Manipuladores de eventos de mouse
+        canvas.addEventListener('mousedown', function(e) {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+            
+            // Verificar se clicou em um planeta existente
+            for (let planet of planets) {
+                if (planet.containsPoint(mouseX, mouseY)) {
+                    draggingPlanet = planet;
+                    return;
+                }
+            }
+            
+            // Verificar se clicou em uma estrela existente
+            for (let star of stars) {
+                if (star.containsPoint(mouseX, mouseY)) {
+                    draggingPlanet = star;
+                    return;
+                }
+            }
+            
+            // Criar um novo planeta no local do clique
+            createPlanet(mouseX, mouseY);
+        });
+        
+        canvas.addEventListener('mousemove', function(e) {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+            
+            // Mostrar tooltip com informações ao passar o mouse sobre os planetas
+            let hoveredPlanet = null;
+            
+            for (let planet of planets) {
+                if (planet.containsPoint(mouseX, mouseY)) {
+                    hoveredPlanet = planet;
+                    break;
+                }
+            }
+            
+            if (!hoveredPlanet) {
+                for (let star of stars) {
+                    if (star.containsPoint(mouseX, mouseY)) {
+                        hoveredPlanet = star;
+                        break;
+                    }
+                }
+            }
+            
+            if (hoveredPlanet) {
+                tooltip.style.display = 'block';
+                tooltip.style.left = (mouseX + 10) + 'px';
+                tooltip.style.top = (mouseY + 10) + 'px';
+                
+                const speed = Math.sqrt(hoveredPlanet.vx * hoveredPlanet.vx + hoveredPlanet.vy * hoveredPlanet.vy).toFixed(2);
+                const type = hoveredPlanet.isFixed ? "Estrela" : "Planeta";
+                
+                tooltip.innerHTML = `
+                    <strong>${type}</strong><br>
+                    Massa: ${hoveredPlanet.mass}<br>
+                    Raio: ${hoveredPlanet.radius} px<br>
+                    Velocidade: ${speed} px/s<br>
+                    Posição: (${Math.round(hoveredPlanet.x)}, ${Math.round(hoveredPlanet.y)})
+                `;
+            } else {
+                tooltip.style.display = 'none';
+            }
+            
+            // Mover o planeta arrastado
+            if (draggingPlanet) {
+                draggingPlanet.x = mouseX;
+                draggingPlanet.y = mouseY;
+                // Resetar o rastro ao mover
+                draggingPlanet.trail = [];
+            }
+        });
+        
+        canvas.addEventListener('mouseup', function() {
+            draggingPlanet = null;
+        });
+        
+        canvas.addEventListener('mouseleave', function() {
+            tooltip.style.display = 'none';
+            draggingPlanet = null;
+        });
+        
+        // Eventos para os controles de UI
+        document.getElementById('planetMass').addEventListener('input', function() {
+            document.getElementById('planetMassValue').textContent = this.value;
+        });
+        
+        document.getElementById('planetRadius').addEventListener('input', function() {
+            document.getElementById('planetRadiusValue').textContent = this.value;
+        });
+        
+        document.getElementById('initialVelocityX').addEventListener('input', function() {
+            document.getElementById('initialVelocityXValue').textContent = this.value;
+        });
+        
+        document.getElementById('initialVelocityY').addEventListener('input', function() {
+            document.getElementById('initialVelocityYValue').textContent = this.value;
+        });
+        
+        document.getElementById('gravityConstant').addEventListener('input', function() {
+            G = parseFloat(this.value);
+            document.getElementById('gravityConstantValue').textContent = this.value;
+        });
+        
+        document.getElementById('timeStep').addEventListener('input', function() {
+            timeStep = parseFloat(this.value);
+            document.getElementById('timeStepValue').textContent = this.value;
+        });
+        
+        document.getElementById('trailLength').addEventListener('input', function() {
+            trailLength = parseInt(this.value);
+            document.getElementById('trailLengthValue').textContent = this.value;
+        });
+        
+        document.getElementById('starMass').addEventListener('input', function() {
+            document.getElementById('starMassValue').textContent = this.value;
+        });
+        
+        document.getElementById('clearPlanets').addEventListener('click', function() {
+            planets = [];
+        });
+        
+        document.getElementById('resetSimulation').addEventListener('click', function() {
+            planets = [];
+            stars = [];
+        });
+        
+        document.getElementById('addStar').addEventListener('click', function() {
+            createStar(width / 2, height / 2);
+        });
+        
+        document.getElementById('toggleStar').addEventListener('click', function() {
+            showStars = !showStars;
+        });
+    </script>
+</body>
+</html>
