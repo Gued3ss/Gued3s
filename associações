@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Associação de Palavras</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .block {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+
+        .rules {
+            background-color: #f8f4ff;
+            border-left: 4px solid #6c5ce7;
+            padding: 15px;
+            margin-top: 10px;
+        }
+
+        .word-input {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 30px 0;
+        }
+
+        .main-word {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2c3e50;
+            padding: 15px 30px;
+            background-color: #e7f5ff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .associations {
+            display: flex;
+            gap: 15px;
+            width: 100%;
+            max-width: 600px;
+            justify-content: center;
+            flex-wrap: wrap; /* Permite que as caixas quebrem em telas menores */
+        }
+
+        .associations input[type="text"] {
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            flex: 1;
+            min-width: 150px; /* Garante um tamanho mínimo em qualquer tela */
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            border-color: #6c5ce7;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+        }
+
+        button {
+            background-color: #6c5ce7;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #5649c0;
+        }
+
+        #graph-container {
+            position: relative;
+            height: 500px;
+            overflow: hidden;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .node {
+            cursor: pointer;
+        }
+
+        .link {
+            stroke: #999;
+            stroke-opacity: 0.6;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .control-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            font-size: 18px;
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            color: #555;
+        }
+
+        .save-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .saved-session {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 6px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .theme-selector {
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .theme-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .theme-btn {
+            background-color: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .theme-btn:hover, .theme-btn.active {
+            background-color: #6c5ce7;
+            color: white;
+            border-color: #6c5ce7;
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .associations {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .associations input[type="text"] {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Bloco de título e regras -->
+        <div class="block">
+            <h1>Associação de Palavras</h1>
+            <div class="rules">
+                <h2>Como funciona:</h2>
+                <ol>
+                    <li>Será apresentada uma palavra principal no centro.</li>
+                    <li>Digite 3 palavras que vêm à sua mente ao pensar na palavra principal.</li>
+                    <li>Clique em "Enviar" ou pressione Enter para registrar suas associações.</li>
+                    <li>As conexões formarão uma rede visual de associações abaixo.</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Novo bloco de seleção de tema -->
+        <div class="block">
+            <h2>Escolha um tema</h2>
+            <div class="theme-selector">
+                <p>Selecione uma categoria para começar ou continue com o tema atual.</p>
+                <div class="theme-buttons">
+                    <button class="theme-btn" data-theme="natureza">Natureza</button>
+                    <button class="theme-btn" data-theme="tecnologia">Tecnologia</button>
+                    <button class="theme-btn" data-theme="emocoes">Emoções</button>
+                    <button class="theme-btn" data-theme="alimentos">Alimentos</button>
+                    <button class="theme-btn" data-theme="esportes">Esportes</button>
+                    <button class="theme-btn" data-theme="cores">Cores</button>
+                    <button class="theme-btn" data-theme="animais">Animais</button>
+                    <button class="theme-btn" data-theme="aleatorio">Aleatório</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bloco de entrada de palavras -->
+        <div class="block">
+            <div class="word-input">
+                <div class="main-word" id="mainWord">Início</div>
+                <div class="associations">
+                    <input type="text" placeholder="Associação 1" id="association1">
+                    <input type="text" placeholder="Associação 2" id="association2">
+                    <input type="text" placeholder="Associação 3" id="association3">
+                </div>
+                <button id="submitBtn">Enviar</button>
+            </div>
+        </div>
+
+        <!-- Bloco do gráfico de rede -->
+        <div class="block">
+            <h2>Rede de Associações</h2>
+            <div id="graph-container">
+                <svg id="graph"></svg>
+            </div>
+            <div class="controls">
+                <button class="control-btn" id="zoomIn">+</button>
+                <button class="control-btn" id="zoomOut">-</button>
+                <button class="control-btn" id="panUp">↑</button>
+                <button class="control-btn" id="panDown">↓</button>
+                <button class="control-btn" id="panLeft">←</button>
+                <button class="control-btn" id="panRight">→</button>
+                <button class="control-btn" id="resetView">⟳</button>
+            </div>
+        </div>
+
+        <!-- Bloco de salvar -->
+        <div class="block">
+            <h2>Salvar Sessão</h2>
+            <div class="save-container">
+                <button id="saveBtn">Salvar Sessão</button>
+                <button id="loadBtn">Carregar Sessão</button>
+                <button id="exportBtn">Exportar JSON</button>
+                <button id="clearBtn">Limpar Tudo</button>
+            </div>
+            <div class="saved-session" id="savedSessionInfo"></div>
+        </div>
+    </div>
+
+    <script>
+        // Banco de dados de temas
+        const themesDatabase = {
+            natureza: ["Água", "Floresta", "Montanha", "Sol", "Vento", "Rio", "Mar", "Árvore", "Flor", "Jardim"],
+            tecnologia: ["Computador", "Internet", "Smartphone", "Aplicativo", "Rede", "Software", "Dados", "Digital", "Inteligência", "Robô"],
+            emocoes: ["Alegria", "Tristeza", "Medo", "Raiva", "Amor", "Felicidade", "Ansiedade", "Surpresa", "Calma", "Esperança"],
+            alimentos: ["Pão", "Arroz", "Fruta", "Carne", "Legume", "Sobremesa", "Café", "Doce", "Salada", "Chocolate"],
+            esportes: ["Futebol", "Basquete", "Corrida", "Natação", "Tênis", "Vôlei", "Ciclismo", "Dança", "Yoga", "Atletismo"],
+            cores: ["Vermelho", "Azul", "Verde", "Amarelo", "Preto", "Branco", "Roxo", "Laranja", "Rosa", "Marrom"],
+            animais: ["Cachorro", "Gato", "Pássaro", "Peixe", "Leão", "Elefante", "Girafa", "Tigre", "Macaco", "Cobra"],
+            aleatorio: ["Liberdade", "Viagem", "Música", "Livro", "Amizade", "Tempo", "Sonho", "Cidade", "Memória", "Energia"]
+        };
+
+        // Estrutura de dados para a rede
+        let nodes = [
+            { id: "Início", group: 1, connections: 0 }
+        ];
+        let links = [];
+        let currentMainWord = "Início";
+        let wordHistory = [];
+        
+        // Configuração do gráfico
+        const width = document.getElementById('graph-container').offsetWidth;
+        const height = document.getElementById('graph-container').offsetHeight;
+        
+        // Criar o SVG
+        const svg = d3.select("#graph")
+            .attr("width", width)
+            .attr("height", height);
+            
+        // Adicionar um grupo para o zoom
+        const g = svg.append("g");
+        
+        // Configurar simulação
+        const simulation = d3.forceSimulation()
+            .force("link", d3.forceLink().id(d => d.id).distance(100))
+            .force("charge", d3.forceManyBody().strength(-300))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collision", d3.forceCollide().radius(60));
+        
+        // Configurar zoom
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 4])
+            .on("zoom", (event) => {
+                g.attr("transform", event.transform);
+            });
+        
+        svg.call(zoom);
+        
+        // Inicializar visualização
+        function updateGraph() {
+            // Criar links - garantindo que eles fiquem abaixo dos nós
+            const link = g.selectAll(".link")
+                .data(links, d => `${d.source.id || d.source}-${d.target.id || d.target}`)
+                .join(
+                    enter => enter.append("line")
+                        .attr("class", "link")
+                        .attr("stroke-width", 2),
+                    update => update,
+                    exit => exit.remove()
+                );
+        
+            // Criar nodes
+            const node = g.selectAll(".node")
+                .data(nodes, d => d.id)
+                .join(
+                    enter => {
+                        const nodeGroup = enter.append("g")
+                            .attr("class", "node")
+                            .call(d3.drag()
+                                .on("start", dragstarted)
+                                .on("drag", dragged)
+                                .on("end", dragended))
+                            .on("click", nodeClicked);
+                            
+                        // Adicionar círculo com tamanho baseado em conexões
+                        nodeGroup.append("circle")
+                            .attr("r", d => getNodeRadius(d))
+                            .attr("fill", "#6c5ce7"); // Cor única como solicitado
+                            
+                        // Adicionar texto
+                        nodeGroup.append("text")
+                            .attr("dy", ".35em")
+                            .attr("text-anchor", "middle")
+                            .attr("fill", "white")
+                            .style("font-size", d => d.id === currentMainWord ? "14px" : "12px")
+                            .style("font-weight", d => d.id === currentMainWord ? "bold" : "normal")
+                            .text(d => d.id);
+                            
+                        return nodeGroup;
+                    },
+                    update => {
+                        // Atualizar o raio baseado em conexões
+                        update.select("circle")
+                            .attr("r", d => getNodeRadius(d))
+                            .attr("fill", "#6c5ce7");
+                            
+                        update.select("text")
+                            .style("font-size", d => d.id === currentMainWord ? "14px" : "12px")
+                            .style("font-weight", d => d.id === currentMainWord ? "bold" : "normal");
+                            
+                        return update;
+                    },
+                    exit => exit.remove()
+                );
+            
+            // Garante que os links fiquem atrás dos nós
+            g.selectAll(".link").lower();
+        
+            // Atualizar a simulação
+            simulation
+                .nodes(nodes)
+                .on("tick", () => {
+                    link
+                        .attr("x1", d => d.source.x)
+                        .attr("y1", d => d.source.y)
+                        .attr("x2", d => d.target.x)
+                        .attr("y2", d => d.target.y);
+        
+                    node
+                        .attr("transform", d => `translate(${d.x},${d.y})`);
+                });
+        
+            simulation.force("link").links(links);
+            simulation.alpha(1).restart();
+        }
+        
+        // Função para calcular o raio do nó baseado no número de conexões
+        function getNodeRadius(node) {
+            // Contar conexões
+            const connectionCount = links.filter(l => 
+                (typeof l.source === 'object' ? l.source.id : l.source) === node.id || 
+                (typeof l.target === 'object' ? l.target.id : l.target) === node.id
+            ).length;
+            
+            // Armazenar o número de conexões no nó
+            node.connections = connectionCount;
+            
+            // Raio base é 25, aumenta com o número de conexões
+            // Nó atual sempre um pouco maior
+            const baseRadius = 25;
+            const connectionBonus = Math.min(connectionCount * 3, 15); // Limite de crescimento
+            return node.id === currentMainWord ? baseRadius + 10 : baseRadius + connectionBonus;
+        }
+        
+        // Funções de arrastar
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+        
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+        
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+        
+        // Função ao clicar em um nó
+        function nodeClicked(event, d) {
+            setMainWord(d.id);
+        }
+        
+        // Configurar a palavra principal
+        function setMainWord(word) {
+            wordHistory.push(currentMainWord);
+            currentMainWord = word;
+            document.getElementById("mainWord").textContent = word;
+            
+            // Limpar os campos de associação
+            document.getElementById("association1").value = "";
+            document.getElementById("association2").value = "";
+            document.getElementById("association3").value = "";
+            
+            // Atualizar visualização destacando o nó atual
+            updateGraph();
+            
+            // Focar no primeiro campo de associação
+            document.getElementById("association1").focus();
+        }
+        
+        // Adicionar novas associações
+        function addAssociations() {
+            const association1 = document.getElementById("association1").value.trim();
+            const association2 = document.getElementById("association2").value.trim();
+            const association3 = document.getElementById("association3").value.trim();
+            
+            if (!association1 && !association2 && !association3) {
+                alert("Por favor, adicione pelo menos uma associação.");
+                return;
+            }
+            
+            // Adicionar novas palavras
+            [association1, association2, association3].filter(a => a).forEach(word => {
+                // Verificar se o nó já existe
+                if (!nodes.some(n => n.id === word)) {
+                    nodes.push({ id: word, group: 1, connections: 0 });
+                }
+                
+                // Verificar se o link já existe
+                if (!links.some(l => 
+                    (l.source.id === currentMainWord && l.target.id === word) || 
+                    (l.source.id === word && l.target.id === currentMainWord))) {
+                    links.push({ source: currentMainWord, target: word, value: 1 });
+                }
+            });
+            
+            // Atualizar o gráfico
+            updateGraph();
+            
+            // Escolher uma das associações para ser a nova palavra principal
+            const validAssociations = [association1, association2, association3].filter(a => a);
+            if (validAssociations.length > 0) {
+                // Selecionar aleatoriamente uma das associações
+                const randomIndex = Math.floor(Math.random() * validAssociations.length);
+                setMainWord(validAssociations[randomIndex]);
+            }
+            
+            // Limpar os campos
+            document.getElementById("association1").value = "";
+            document.getElementById("association2").value = "";
+            document.getElementById("association3").value = "";
+            document.getElementById("association1").focus();
+        }
+        
+        // Event listeners
+        document.getElementById("submitBtn").addEventListener("click", addAssociations);
+        
+        // Permitir enviar com Enter
+        const associationInputs = [
+            document.getElementById("association1"),
+            document.getElementById("association2"),
+            document.getElementById("association3")
+        ];
+        
+        associationInputs.forEach(input => {
+            input.addEventListener("keypress", function(event) {
+                if (event.key === "Enter") {
+                    // Verificar se todos os campos estão preenchidos
+                    const allFilled = associationInputs.every(inp => inp.value.trim() !== "");
+                    
+                    if (allFilled) {
+                        addAssociations();
+                    } else {
+                        // Mover para o próximo campo
+                        const currentIndex = associationInputs.indexOf(this);
+                        if (currentIndex < associationInputs.length - 1) {
+                            associationInputs[currentIndex + 1].focus();
+                        } else {
+                            addAssociations();
+                        }
+                    }
+                }
+            });
+        });
+        
+        // Controles de zoom e pan
+        document.getElementById("zoomIn").addEventListener("click", () => {
+            svg.transition().call(zoom.scaleBy, 1.5);
+        });
+        
+        document.getElementById("zoomOut").addEventListener("click", () => {
+            svg.transition().call(zoom.scaleBy, 0.75);
+        });
+        
+        document.getElementById("panUp").addEventListener("click", () => {
+            svg.transition().call(zoom.translateBy, 0, -50);
+        });
+        
+        document.getElementById("panDown").addEventListener("click", () => {
+            svg.transition().call(zoom.translateBy, 0, 50);
+        });
+        
+        document.getElementById("panLeft").addEventListener("click", () => {
+            svg.transition().call(zoom.translateBy, -50, 0);
+        });
+        
+        document.getElementById("panRight").addEventListener("click", () => {
+            svg.transition().call(zoom.translateBy, 50, 0);
+        });
+        
+        document.getElementById("resetView").addEventListener("click", () => {
+            svg.transition().call(zoom.transform, d3.zoomIdentity);
+        });
+        
+        // Funções de salvar e carregar
+        document.getElementById("saveBtn").addEventListener("click", () => {
+            const data = {
+                nodes: nodes.map(n => ({...n})), // Cópia profunda
+                links: links.map(l => ({
+                    source: typeof l.source === 'object' ? l.source.id : l.source,
+                    target: typeof l.target === 'object' ? l.target.id : l.target,
+                    value: l.value
+                })),
+                currentMainWord: currentMainWord
+            };
+            
+            localStorage.setItem("wordAssociationData", JSON.stringify(data));
+            
+            const savedInfo = document.getElementById("savedSessionInfo");
+            const date = new Date().toLocaleString();
+            savedInfo.innerHTML = `<p>Sessão salva em: ${date}</p>
+                                  <p>Palavras: ${nodes.length}</p>
+                                  <p>Conexões: ${links.length}</p>`;
+        });
+        
+        document.getElementById("loadBtn").addEventListener("click", () => {
+            const savedData = localStorage.getItem("wordAssociationData");
+            
+            if (savedData) {
+                try {
+                    const data = JSON.parse(savedData);
+                    
+                    // Garantir que temos os campos necessários
+                    if (data.nodes && data.links && data.currentMainWord) {
+                        nodes = data.nodes;
+                        
+                        // Reconstruir links com referências de objeto
+                        links = data.links.map(l => ({
+                            source: l.source,
+                            target: l.target,
+                            value: l.value || 1
+                        }));
+                        
+                        currentMainWord = data.currentMainWord;
+                        document.getElementById("mainWord").textContent = currentMainWord;
+                        
+                        updateGraph();
+                        
+                        const savedInfo = document.getElementById("savedSessionInfo");
+                        savedInfo.innerHTML = `<p>Sessão carregada com sucesso!</p>
+                                              <p>Palavras: ${nodes.length}</p>
+                                              <p>Conexões: ${links.length}</p>`;
+                    } else {
+                        throw new Error("Dados incompletos");
+                    }
+                } catch (error) {
+                    console.error("Erro ao carregar dados:", error);
+                    alert("Erro ao carregar a sessão. Os dados podem estar corrompidos.");
+                }
+            } else {
+                alert("Nenhuma sessão salva encontrada!");
+            }
+        });
+        
+        document.getElementById("exportBtn").addEventListener("click", () => {
+            const data = {
+                nodes: nodes.map(n => ({...n})),
+                links: links.map(l => ({
+                    source: typeof l.source === 'object' ? l.source.id : l.source,
+                    target: typeof l.target === 'object' ? l.target.id : l.target,
+                    value: l.value || 1
+                })),
+                currentMainWord: currentMainWord
+            };
+            
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "associacao_palavras.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        });
+        
+        // Botão para limpar tudo
+        document.getElementById("clearBtn").addEventListener("click", () => {
+            if (confirm("Tem certeza que deseja limpar todos os dados? Esta ação não pode ser desfeita.")) {
+                nodes = [{ id: "Início", group: 1, connections: 0 }];
+                links = [];
+                currentMainWord = "Início";
+                document.getElementById("mainWord").textContent = currentMainWord;
+                updateGraph();
+            }
+        });
+        
+        // Temas
+        document.querySelectorAll('.theme-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const theme = this.getAttribute('data-theme');
+                
+                // Removendo a classe ativa de todos os botões
+                document.querySelectorAll('.theme-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                
+                // Adicionando a classe ativa ao botão clicado
+                this.classList.add('active');
+                
+                // Selecionar uma palavra aleatória do tema
+                if (themesDatabase[theme]) {
+                    const randomWord = themesDatabase[theme][Math.floor(Math.random() * themesDatabase[theme].length)];
+                    
+                    // Verificar se a palavra já existe no grafo
+                    if (!nodes.some(n => n.id === randomWord)) {
+                        nodes.push({ id: randomWord, group: 1, connections: 0 });
+                    }
+                    
+                    setMainWord(randomWord);
+                }
+            });
+        });
+        
+        // Inicializar o gráfico
+        updateGraph();
+    </script>
+</body>
+</html>
