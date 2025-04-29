@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Concorrentes - Toca do Coelho</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
+    <style>
+        :root {
+            --primary: #8B5FBF;
+            --secondary: #61764B;
+            --accent: #9ACD32;
+            --light: #F5F5F5;
+            --dark: #333333;
+            --danger: #D9534F;
+            --warning: #F0AD4E;
+            --success: #5CB85C;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #F5F7FA;
+            color: var(--dark);
+        }
+        
+        .header {
+            background-color: var(--primary);
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+            background-image: linear-gradient(135deg, var(--primary) 0%, #6A5ACD 100%);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .section {
+            padding: 2rem;
+            margin: 2rem 0;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        
+        .section-title {
+            color: var(--primary);
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .card {
+            border-radius: 8px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .impact-high {
+            border-left: 4px solid var(--danger);
+        }
+        
+        .impact-medium {
+            border-left: 4px solid var(--warning);
+        }
+        
+        .impact-low {
+            border-left: 4px solid var(--success);
+        }
+        
+        .tag {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            margin-right: 0.3rem;
+            margin-bottom: 0.3rem;
+        }
+        
+        .tag-cafe {
+            background-color: #FFD6A5;
+            color: #A05600;
+        }
+        
+        .tag-livraria {
+            background-color: #CAFFBF;
+            color: #1B5E20;
+        }
+        
+        .tag-jogos {
+            background-color: #A0C4FF;
+            color: #0039A6;
+        }
+        
+        .tag-centro {
+            background-color: #FDFFB6;
+            color: #8B8000;
+        }
+        
+        .tag-food {
+            background-color: #FFB3BA;
+            color: #9A0007;
+        }
+        
+        .heatmap-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .heatmap-cell {
+            border-radius: 4px;
+            text-align: center;
+            padding: 15px 5px;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .heatmap-level-5 {
+            background-color: #d73027;
+        }
+        
+        .heatmap-level-4 {
+            background-color: #fc8d59;
+        }
+        
+        .heatmap-level-3 {
+            background-color: #fee08b;
+            color: #333;
+        }
+        
+        .heatmap-level-2 {
+            background-color: #d9ef8b;
+            color: #333;
+        }
+        
+        .heatmap-level-1 {
+            background-color: #91cf60;
+            color: #333;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            background-color: var(--primary);
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #E0E0E0;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #F9F9F9;
+        }
+        
+        .progress-bar {
+            height: 10px;
+            border-radius: 5px;
+            background-color: #E0E0E0;
+            margin-top: 5px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            border-radius: 5px;
+            background-image: linear-gradient(to right, var(--success), var(--danger));
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+        }
+        
+        @media (max-width: 768px) {
+            .heatmap-container {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .heatmap-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Estilos para o radar chart */
+        #radar-chart {
+            margin: 0 auto;
+        }
+
+        /* Estilos para o mapa de calor */
+        .danger-rating {
+            width: 100%;
+            height: 30px;
+            background: linear-gradient(to right, #5CB85C, #F0AD4E, #D9534F);
+            border-radius: 15px;
+            position: relative;
+            margin-top: 10px;
+        }
+        
+        .danger-marker {
+            position: absolute;
+            top: -15px;
+            width: 12px;
+            height: 60px;
+            background-color: rgba(0, 0, 0, 0.7);
+            transform: translateX(-6px);
+            border-radius: 6px;
+        }
+
+        /* Tooltip personalizado */
+        .tooltip {
+            position: absolute;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            border-radius: 4px;
+            pointer-events: none;
+            z-index: 1000;
+            font-size: 14px;
+            max-width: 300px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        /* Filtro global */
+        .filter-section {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border-radius: 20px;
+            background-color: #eee;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .filter-btn.active {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .subtle-animation {
+            animation: fadeIn 1s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container mx-auto px-4">
+            <h1 class="text-4xl font-bold mb-2">Dashboard de Concorrentes</h1>
+            <h2 class="text-xl">Toca do Coelho - Cafeteria/Livraria/Espaço de Jogos</h2>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4">
+        <div class="section">
+            <h3 class="section-title text-xl font-bold">Filtrar por Categoria</h3>
+            <div class="filter-section">
+                <button class="filter-btn active" data-filter="all">Todos</button>
+                <button class="filter-btn" data-filter="cafe">Cafeteria</button>
+                <button class="filter-btn" data-filter="livraria">Livraria</button>
+                <button class="filter-btn" data-filter="jogos">Jogos</button>
+                <button class="filter-btn" data-filter="centro">Centro</button>
+                <button class="filter-btn" data-filter="high">Alto Impacto</button>
+                <button class="filter-btn" data-filter="medium">Médio Impacto</button>
+            </div>
+        </div>
+
+        <!-- Cards dos Concorrentes -->
+        <div class="section subtle-animation">
+            <h3 class="section-title text-xl font-bold">Concorrentes Principais</h3>
+            <div id="competitors-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Os cards serão gerados dinamicamente com JavaScript -->
+            </div>
+        </div>
+
+        <!-- Tabela Comparativa -->
+        <div class="section subtle-animation">
+            <h3 class="section-title text-xl font-bold">Tabela Comparativa</h3>
+            <div class="table-container">
+                <table id="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Estabelecimento</th>
+                            <th>Cafeteria</th>
+                            <th>Livraria</th>
+                            <th>Jogos</th>
+                            <th>Localização</th>
+                            <th>Impacto Potencial</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- As linhas da tabela serão geradas dinamicamente com JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Gráfico de Barras -->
+        <div class="section subtle-animation">
+            <h3 class="section-title text-xl font-bold">Pilares por Concorrente</h3>
+            <div class="chart-container">
+                <canvas id="pillar-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Heatmap de Concorrentes -->
+        <div class="section subtle-animation">
+            <h3 class="section-title text-xl font-bold">Heatmap de Competitividade</h3>
+            <p class="mb-4">Este mapa de calor mostra o nível de ameaça competitiva de cada concorrente baseado na sobreposição de serviços e localização.</p>
+            <div id="heatmap-container" class="heatmap-container">
+                <!-- O heatmap será gerado dinamicamente com JavaScript -->
+            </div>
+        </div>
+
+        <!-- Gráfico Radar -->
+        <div class="section subtle-animation">
+            <h3 class="section-title text-xl font-bold">Análise de Sobreposição</h3>
+            <p class="mb-4">Este gráfico radar mostra o quanto cada concorrente se sobrepõe aos pilares do seu negócio.</p>
+            <div class="chart-container">
+                <canvas id="radar-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Seção de Recomendações -->
+        <div class="section subtle-animation">
+            <h3 class="section-title text-xl font-bold">Diferenciais e Recomendações</h3>
+            <div class="bg-blue-50 p-6 rounded-lg">
+                <h4 class="font-bold text-lg mb-3 text-blue-800">Diferenciais da Toca do Coelho</h4>
+                <ul class="list-disc pl-5 mb-4 text-blue-700">
+                    <li class="mb-2"><strong>Integração única:</strong> Combinação equilibrada de cafeteria, livraria e jogos de tabuleiro para todas as idades.</li>
+                    <li class="mb-2"><strong>Ambiente acolhedor:</strong> Design clean, moderno e nostálgico criando um "segundo lar" para os clientes.</li>
+                    <li class="mb-2"><strong>Localização estratégica:</strong> Posição central com alta visibilidade e acesso ao fluxo de pedestres.</li>
+                    <li class="mb-2"><strong>Variedade alimentar:</strong> Cafés e sobremesas caseiras que atraem diferentes públicos.</li>
+                </ul>
+
+                <h4 class="font-bold text-lg mb-3 text-blue-800">Estratégias Recomendadas</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <h5 class="font-bold text-blue-600">Eventos Exclusivos</h5>
+                        <p>Promover saraus, noites de jogos e lançamentos de livros para criar uma comunidade fiel.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <h5 class="font-bold text-blue-600">Marketing Local</h5>
+                        <p>Usar redes sociais e parcerias com comerciantes do Centro para atrair pedestres.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <h5 class="font-bold text-blue-600">Experiência Personalizada</h5>
+                        <p>Garantir atendimento acolhedor e espaço acessível que reflita os valores de bem-estar e cultura.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <h5 class="font-bold text-blue-600">Combos Integrados</h5>
+                        <p>Oferecer promoções que combinam os três pilares: café + aluguel de jogo + desconto em livro.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-gray-800 text-white py-6">
+        <div class="container mx-auto px-4 text-center">
+            <p>© 2025 Toca do Coelho - Análise de Concorrentes</p>
+        </div>
+    </footer>
+
+    <div class="tooltip" id="custom-tooltip"></div>
+
+    <script>
+        // Dados dos concorrentes
+        const competitors = [
+            {
+                name: "Bruma Café Com Viagem Book Bar",
+                description: "Cafeteria, livraria e espaço para jogos de tabuleiro, além de eventos culturais como saraus e karaokê.",
+                location: "Vila Helio",
+                tags: ["cafe", "livraria", "jogos"],
+                pillars: {cafe: 1, livraria: 1, jogos: 1},
+                impact: "high",
+                impactScore: 5,
+                dangerLevel: 90
+            },
+            {
+                name: "Outboard - Jogos de Tabuleiro & Burgers",
+                description: "Hamburgueria com espaço dedicado a jogos de tabuleiro e cartas, focada em entretenimento e alimentação.",
+                location: "Centro",
+                tags: ["jogos", "food", "centro"],
+                pillars: {cafe: 0.5, livraria: 0, jogos: 1},
+                impact: "high",
+                impactScore: 5,
+                dangerLevel: 85
+            },
+            {
+                name: "Livraria Leitura",
+                description: "Livraria com grande acervo de livros, jogos de tabuleiro e eventos culturais.",
+                location: "Mogi Shopping, Centro Cívico",
+                tags: ["livraria", "jogos"],
+                pillars: {cafe: 0, livraria: 1, jogos: 0.7},
+                impact: "medium",
+                impactScore: 3,
+                dangerLevel: 60
+            },
+            {
+                name: "A Eólica Bookbar",
+                description: "Livraria com café e eventos culturais, como oficinas e encontros literários.",
+                location: "Vila Helio",
+                tags: ["cafe", "livraria"],
+                pillars: {cafe: 0.8, livraria: 1, jogos: 0},
+                impact: "medium",
+                impactScore: 3,
+                dangerLevel: 55
+            },
+            {
+                name: "Gnome Café",
+                description: "Cafeteria temática de fantasia e quadrinhos, com cafés especiais e eventos ocasionais de RPG.",
+                location: "Centro",
+                tags: ["cafe", "jogos", "centro"],
+                pillars: {cafe: 1, livraria: 0, jogos: 0.5},
+                impact: "medium",
+                impactScore: 3,
+                dangerLevel: 65
+            },
+            {
+                name: "D'Café",
+                description: "Cafeteria com cardápio caseiro e ambiente acolhedor.",
+                location: "Centro",
+                tags: ["cafe", "centro"],
+                pillars: {cafe: 1, livraria: 0, jogos: 0},
+                impact: "low",
+                impactScore: 2,
+                dangerLevel: 40
+            },
+            {
+                name: "Alpha Jogos",
+                description: "Loja e ludoteca especializada em board games e card games (Magic, Pokémon).",
+                location: "Centro",
+                tags: ["jogos", "centro"],
+                pillars: {cafe: 0, livraria: 0, jogos: 1},
+                impact: "medium",
+                impactScore: 3,
+                dangerLevel: 50
+            },
+            {
+                name: "Taberna Geek",
+                description: "Bar temático com jogos de tabuleiro e card games, voltado ao público geek.",
+                location: "Centro",
+                tags: ["jogos", "food", "centro"],
+                pillars: {cafe: 0.3, livraria: 0, jogos: 0.9},
+                impact: "medium",
+                impactScore: 4,
+                dangerLevel: 70
+            },
+            {
+                name: "Lanches no Ponto",
+                description: "Lanchonete tradicional com sanduíches e porções.",
+                location: "Centro",
+                tags: ["food", "centro"],
+                pillars: {cafe: 0.3, livraria: 0, jogos: 0},
+                impact: "low",
+                impactScore: 1,
+                dangerLevel: 20
+            },
+            {
+                name: "Sr. Café",
+                description: "Cafeteria com ambiente acolhedor e variedade de cafés e lanches.",
+                location: "Vila Oliveira",
+                tags: ["cafe", "food"],
+                pillars: {cafe: 1, livraria: 0, jogos: 0},
+                impact: "low",
+                impactScore: 2,
+                dangerLevel: 35
+            },
+            {
+                name: "Empório D'Angola",
+                description: "Restaurante e café com foco em cafés especiais e pães de queijo.",
+                location: "Centro",
+                tags: ["cafe", "food", "centro"],
+                pillars: {cafe: 0.8, livraria: 0, jogos: 0},
+                impact: "low",
+                impactScore: 2,
+                dangerLevel: 30
+            },
+            {
+                name: "Farol Jogos",
+                description: "Serviço de aluguel de jogos de tabuleiro.",
+                location: "Mogi das Cruzes",
+                tags: ["jogos"],
+                pillars: {cafe: 0, livraria: 0, jogos: 0.8},
+                impact: "low",
+                impactScore: 2,
+                dangerLevel: 25
+            }
+        ];
+
+        // Função para criar os cards dos concorrentes
+        function createCompetitorCards() {
+            const grid = document.getElementById('competitors-grid');
+            grid.innerHTML = '';
+
+            competitors.forEach(comp => {
+                const card = document.createElement('div');
+                card.className = `card p-6 bg-white shadow-md impact-${comp.impact} ${comp.tags.map(t => 'filter-' + t).join(' ')} filter-${comp.impact}`;
+                
+                let tagsHTML = '';
+                comp.tags.forEach(tag => {
+                    tagsHTML += `<span class="tag tag-${tag}">${tag}</span>`;
+                });
+
+                let impactClass = '';
+                let impactBadge = '';
+                
+                if (comp.impact === 'high') {
+                    impactClass = 'bg-red-100 text-red-800';
+                    impactBadge = '<span class="inline-block px-2 py-1 text-xs font-semibold bg-red-500 text-white rounded-full ml-2">Alto</span>';
+                } else if (comp.impact === 'medium') {
+                    impactClass = 'bg-yellow-100 text-yellow-800';
+                    impactBadge = '<span class="inline-block px-2 py-1 text-xs font-semibold bg-yellow-500 text-white rounded-full ml-2">Médio</span>';
+                } else {
+                    impactClass = 'bg-green-100 text-green-800';
+                    impactBadge = '<span class="inline-block px-2 py-1 text-xs font-semibold bg-green-500 text-white rounded-full ml-2">Baixo</span>';
+                }
+                
+                card.innerHTML = `
+                    <h4 class="font-bold text-lg mb-2">${comp.name}</h4>
+                    <p class="text-sm mb-3">${comp.description}</p>
+                    <div class="flex items-center mb-3">
+                        <svg class="w-4 h-4 mr-1 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        <span class="text-sm text-gray-600">${comp.location}</span>
+                    </div>
+                    <div class="mb-3">
+                        ${tagsHTML}
+                    </div>
+                    <div class="mt-4">
+                        <div class="${impactClass} text-sm py-1 px-3 rounded-full inline-block">
+                            Impacto Potencial ${impactBadge}
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <div class="text-sm text-gray-600 mb-1">Nível de Ameaça</div>
+                        <div class="danger-rating">
+                            <div class="danger-marker" style="left: ${comp.dangerLevel}%;"></div>
+                        </div>
+                    </div>
+                `;
+                
+                grid.appendChild(card);
+            });
+        }
+
+        // Função para criar a tabela comparativa
+        function createComparisonTable() {
+            const table = document.getElementById('comparison-table').getElementsByTagName('tbody')[0];
+            table.innerHTML = '';
+
+            competitors.forEach(comp => {
+                const row = table.insertRow();
+                
+                // Nome do estabelecimento
+                const cell1 = row.insertCell(0);
+                cell1.innerHTML = `<strong>${comp.name}</strong>`;
+                
+                // Cafeteria
+                const cell2 = row.insertCell(1);
+                cell2.innerHTML = createProgressBar(comp.pillars.cafe * 100);
+                
+                // Livraria
+                const cell3 = row.insertCell(2);
+                cell3.innerHTML = createProgressBar(comp.pillars.livraria * 100);
+                
+                // Jogos
+                const cell4 = row.insertCell(3);
+                cell4.innerHTML = createProgressBar(comp.pillars.jogos * 100);
+                
+                // Localização
+                const cell5 = row.insertCell(4);
+                cell5.textContent = comp.location;
+                
+                // Impacto Potencial
+                const cell6 = row.insertCell(5);
+                let impactText = '';
+                
+                if (comp.impact === 'high') {
+                    impactText = '<span class="font-bold text-red-600">Alto</span>';
+                } else if (comp.impact === 'medium') {
+                    impactText = '<span class="font-bold text-yellow-600">Médio</span>';
+                } else {
+                    impactText = '<span class="font-bold text-green-600">Baixo</span>';
+                }
+                
+                cell6.innerHTML = impactText;
+            });
+        }
+
+        // Função para criar a barra de progresso
+        function createProgressBar(percentage) {
+            return `
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${percentage}%"></div>
+                </div>
+            `;
+        }
+
+        // Função para criar o gráfico de barras
+        function createPillarChart() {
+            const ctx = document.getElementById('pillar-chart').getContext('2d');
+            
+            // Extrair nomes e valores dos pilares
+            const labels = competitors.map(comp => comp.name);
+            const cafeData = competitors.map(comp => comp.pillars.cafe * 100);
+            const livrariaData = competitors.map(comp => comp.pillars.livraria * 100);
+            const jogosData = competitors.map(comp => comp.pillars.jogos * 100);
+            
+            const chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Cafeteria',
+                            data: cafeData,
+                            backgroundColor: '#FFD6A5',
+                            borderColor: '#A05600',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Livraria',
+                            data: livrariaData,
+                            backgroundColor: '#CAFFBF',
+                            borderColor: '#1B5E20',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Jogos',
+                            data: jogosData,
+                            backgroundColor: '#A0C4FF',
+                            borderColor: '#0039A6',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: false,
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            stacked: false,
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.raw + '%';
+                                }
+                            }
+                        },
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Comparação dos Pilares por Concorrente'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Função para criar o heatmap
+        function createHeatmap() {
+            const container = document.getElementById('heatmap-container');
+            container.innerHTML = '';
+            
+            // Ordenar concorrentes pelo nível de perigo (do mais alto para o mais baixo)
+            const sortedCompetitors = [...competitors].sort((a, b) => b.dangerLevel - a.dangerLevel);
+            
+            sortedCompetitors.forEach(comp => {
+                const cell = document.createElement('div');
+                
+                // Determinar o nível do heatmap com base no nível de perigo
+                let levelClass = '';
+                if (comp.dangerLevel >= 80) {
+                    levelClass = 'heatmap-level-5';
+                } else if (comp.dangerLevel >= 60) {
+                    levelClass = 'heatmap-level-4';
+                } else if (comp.dangerLevel >= 40) {
+                    levelClass = 'heatmap-level-3';
+                } else if (comp.dangerLevel >= 20) {
+                    levelClass = 'heatmap-level-2';
+                } else {
+                    levelClass = 'heatmap-level-1';
+                }
+                
+                // Adicionar classes de filtro
+                let filterClasses = comp.tags.map(tag => `filter-${tag}`).join(' ');
+                filterClasses += ` filter-${comp.impact}`;
+                
+                cell.className = `heatmap-cell ${levelClass} ${filterClasses}`;
+                cell.innerHTML = `
+                    <div>${comp.name}</div>
+                    <div class="text-xs mt-2">${comp.dangerLevel}% ameaça</div>
+                `;
+                
+                // Adicionar tooltip personalizado no mouseover
+                cell.addEventListener('mouseover', function(e) {
+                    const tooltip = document.getElementById('custom-tooltip');
+                    tooltip.innerHTML = `
+                        <strong>${comp.name}</strong><br>
+                        Localização: ${comp.location}<br>
+                        Cafeteria: ${Math.round(comp.pillars.cafe * 100)}%<br>
+                        Livraria: ${Math.round(comp.pillars.livraria * 100)}%<br>
+                        Jogos: ${Math.round(comp.pillars.jogos * 100)}%<br>
+                        Nível de Ameaça: ${comp.dangerLevel}%
+                    `;
+                    tooltip.style.opacity = 1;
+                    tooltip.style.left = e.pageX + 'px';
+                    tooltip.style.top = (e.pageY - 100) + 'px';
+                });
+                
+                cell.addEventListener('mouseout', function() {
+                    const tooltip = document.getElementById('custom-tooltip');
+                    tooltip.style.opacity = 0;
+                });
+                
+                container.appendChild(cell);
+            });
+        }
+
+        // Função para criar o gráfico de radar
+        function createRadarChart() {
+            const ctx = document.getElementById('radar-chart').getContext('2d');
+            
+            // Selecionar apenas os concorrentes mais relevantes para o gráfico radar
+            const topCompetitors = competitors.filter(comp => comp.impact === 'high' || (comp.impact === 'medium' && comp.dangerLevel >= 60));
+            
+            const radarChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Cafeteria', 'Livraria', 'Jogos', 'Localização Central', 'Potencial de Impacto'],
+                    datasets: topCompetitors.map((comp, index) => {
+                        // Gerar cores diferentes para cada concorrente
+                        const hue = (index * 137) % 360;
+                        const color = `hsla(${hue}, 70%, 60%, 0.7)`;
+                        const borderColor = `hsla(${hue}, 70%, 50%, 1)`;
+                        
+                        // Calcular valor para "Localização Central"
+                        const locationScore = comp.location.includes('Centro') ? 1 : 0.3;
+                        
+                        return {
+                            label: comp.name,
+                            data: [
+                                comp.pillars.cafe * 100,
+                                comp.pillars.livraria * 100,
+                                comp.pillars.jogos * 100,
+                                locationScore * 100,
+                                comp.impactScore * 20 // Multiplicar por 20 para converter para escala de 100
+                            ],
+                            backgroundColor: color,
+                            borderColor: borderColor,
+                            borderWidth: 2,
+                            pointBackgroundColor: borderColor,
+                            pointRadius: 4
+                        };
+                    })
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                display: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.raw + '%';
+                                }
+                            }
+                        },
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Sobreposição com a Toca do Coelho'
+                        }
+                    }
+                }
+            });
+            
+            // Adicionar a Toca do Coelho como referência no gráfico radar
+            radarChart.data.datasets.unshift({
+                label: 'Toca do Coelho',
+                data: [100, 100, 100, 100, 0], // Valores ideais para nosso próprio negócio
+                backgroundColor: 'rgba(139, 95, 191, 0.2)',
+                borderColor: 'rgba(139, 95, 191, 1)',
+                borderWidth: 3,
+                pointBackgroundColor: 'rgba(139, 95, 191, 1)',
+                pointRadius: 5
+            });
+            
+            radarChart.update();
+        }
+
+        // Implementar filtros
+        function setupFilters() {
+            const filterButtons = document.querySelectorAll('.filter-btn');
+            
+            filterButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const filter = this.getAttribute('data-filter');
+                    
+                    // Atualizar botões
+                    filterButtons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Filtrar cards
+                    const cards = document.querySelectorAll('#competitors-grid .card');
+                    cards.forEach(card => {
+                        if (filter === 'all') {
+                            card.style.display = 'block';
+                        } else {
+                            if (card.classList.contains(`filter-${filter}`)) {
+                                card.style.display = 'block';
+                            } else {
+                                card.style.display = 'none';
+                            }
+                        }
+                    });
+                    
+                    // Filtrar heatmap
+                    const heatmapCells = document.querySelectorAll('.heatmap-cell');
+                    heatmapCells.forEach(cell => {
+                        if (filter === 'all') {
+                            cell.style.display = 'block';
+                        } else {
+                            if (cell.classList.contains(`filter-${filter}`)) {
+                                cell.style.display = 'block';
+                            } else {
+                                cell.style.display = 'none';
+                            }
+                        }
+                    });
+                });
+            });
+        }
+
+        // Função para detectar animações quando as seções entram na viewport
+        function setupAnimations() {
+            const animatedSections = document.querySelectorAll('.subtle-animation');
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = 1;
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            }, { threshold: 0.1 });
+            
+            animatedSections.forEach(section => {
+                section.style.opacity = 0;
+                section.style.transform = 'translateY(20px)';
+                section.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                observer.observe(section);
+            });
+        }
+
+        // Inicializar todas as visualizações quando o documento estiver pronto
+        document.addEventListener('DOMContentLoaded', function() {
+            createCompetitorCards();
+            createComparisonTable();
+            createPillarChart();
+            createHeatmap();
+            createRadarChart();
+            setupFilters();
+            setupAnimations();
+        });
+    </script>
+</body>
+</html>
