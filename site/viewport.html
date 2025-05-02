@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico de Viewport</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2980b9;
+            --background-color: #f5f7fa;
+            --card-bg: #ffffff;
+            --text-color: #2c3e50;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --info-color: #1abc9c;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding-top: 60px;
+            transition: all 0.3s ease;
+        }
+        
+        .ratio-visualizer-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 15px 0;
+            height: 100px;
+        }
+        
+        #ratio-visualizer {
+            background-color: rgba(52, 152, 219, 0.3);
+            border: 2px solid var(--primary-color);
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        
+        .mt-10 {
+            margin-top: 10px;
+        }
+        
+        .location-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.3s ease;
+            margin: 5px 0;
+        }
+        
+        .location-btn:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        .location-info {
+            font-size: 0.9rem;
+            margin-top: 8px;
+        }
+        
+        .card-wide {
+            grid-column: span 2;
+        }
+        
+        #bouncer-container {
+            position: relative;
+            height: 200px;
+            margin: 15px 0;
+            background-color: rgba(52, 152, 219, 0.1);
+            border: 2px solid var(--primary-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        #cat-bouncer {
+            position: absolute;
+            font-size: 24px;
+            user-select: none;
+            transition: transform 0.2s ease;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 100;
+            box-shadow: var(--shadow);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+
+        header p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        main {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        .card-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .card-icon {
+            font-size: 1.5rem;
+            margin-right: 10px;
+            color: var(--primary-color);
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .card-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+
+        .card-description {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+
+        .orientation-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 10px 0;
+        }
+
+        .orientation-icon {
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--primary-color);
+            border-radius: 5px;
+            margin: 0 10px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .portrait {
+            width: 30px;
+            height: 50px;
+        }
+
+        .landscape {
+            width: 50px;
+            height: 30px;
+        }
+
+        .active-orientation {
+            background-color: var(--primary-color);
+        }
+
+        .device-icon {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin: 10px 0;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .active {
+            background-color: var(--success-color);
+        }
+
+        .inactive {
+            background-color: #e0e0e0;
+        }
+
+        #updated-info {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            margin-top: 30px;
+        }
+
+        .feature-tag {
+            display: inline-block;
+            padding: 3px 8px;
+            background-color: var(--info-color);
+            color: white;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            margin-top: 10px;
+            margin-right: 5px;
+        }
+
+        .hint {
+            background-color: #f8f9fa;
+            border-left: 4px solid var(--primary-color);
+            padding: 10px 15px;
+            margin: 20px 0;
+            font-size: 0.9rem;
+        }
+
+        /* Responsividade */
+        @media (max-width: 600px) {
+            .card-container {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 1.3rem;
+            }
+            
+            header p {
+                font-size: 0.8rem;
+            }
+        }
+
+        /* Animação de atualização */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .update-animation {
+            animation: pulse 0.5s ease;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            margin-top: 30px;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Diagnóstico de Viewport e Ambiente</h1>
+        <p>Veja em tempo real como seu site enxerga o dispositivo do usuário</p>
+    </header>
+
+    <main>
+        <div class="card-container">
+            <!-- Dimensões do Viewport -->
+            <div class="card" id="dimensions-card">
+                <div class="card-header">
+                    <div class="card-icon">📏</div>
+                    <h2 class="card-title">Dimensões do Viewport</h2>
+                </div>
+                <div class="card-value" id="viewport-size">--</div>
+                <p class="card-description">Largura × Altura em pixels (px)</p>
+            </div>
+            
+            <!-- Data, Hora e Localização -->
+            <div class="card" id="datetime-card">
+                <div class="card-header">
+                    <div class="card-icon">🕒</div>
+                    <h2 class="card-title">Data e Hora</h2>
+                </div>
+                <div class="card-value" id="current-date">--</div>
+                <div id="current-time">--</div>
+                <div id="timezone-info">--</div>
+                <div id="geolocation" class="mt-10">
+                    <button id="get-location" class="location-btn">📍 Verificar Localização</button>
+                    <div id="location-info" class="location-info">Clique no botão para verificar sua localização</div>
+                </div>
+                <p class="card-description">Informações temporais e geográficas</p>
+            </div>
+
+            <!-- Proporção/Aspect Ratio -->
+            <div class="card" id="ratio-card">
+                <div class="card-header">
+                    <div class="card-icon">📐</div>
+                    <h2 class="card-title">Proporção (Aspect Ratio)</h2>
+                </div>
+                <div class="card-value" id="aspect-ratio">--</div>
+                <div class="ratio-visualizer-container">
+                    <div id="ratio-visualizer"></div>
+                </div>
+                <p class="card-description">Relação entre largura e altura</p>
+            </div>
+
+            <!-- Orientação -->
+            <div class="card" id="orientation-card">
+                <div class="card-header">
+                    <div class="card-icon">🔄</div>
+                    <h2 class="card-title">Orientação</h2>
+                </div>
+                <div class="card-value" id="orientation-value">--</div>
+                <div class="orientation-indicator">
+                    <div class="orientation-icon portrait" id="portrait-icon"></div>
+                    <div class="orientation-icon landscape" id="landscape-icon"></div>
+                </div>
+                <p class="card-description">Como seu dispositivo está posicionado</p>
+            </div>
+
+            <!-- Tipo de Dispositivo -->
+            <div class="card" id="device-card">
+                <div class="card-header">
+                    <div class="card-icon">📱</div>
+                    <h2 class="card-title">Tipo de Dispositivo</h2>
+                </div>
+                <div class="device-icon" id="device-icon">
+                    <!-- Preenchido via JS -->
+                </div>
+                <div class="card-value" id="device-type">--</div>
+                <p class="card-description">Baseado no tamanho da tela e agente do usuário</p>
+            </div>
+
+            <!-- Navegador e Sistema Operacional -->
+            <div class="card" id="browser-card">
+                <div class="card-header">
+                    <div class="card-icon">🌐</div>
+                    <h2 class="card-title">Navegador & Sistema</h2>
+                </div>
+                <div class="card-value" id="browser-info">--</div>
+                <div id="os-info">--</div>
+                <p class="card-description">Informações detectadas via user-agent</p>
+            </div>
+
+            <!-- Zoom -->
+            <div class="card" id="zoom-card">
+                <div class="card-header">
+                    <div class="card-icon">🔍</div>
+                    <h2 class="card-title">Nível de Zoom</h2>
+                </div>
+                <div class="card-value" id="zoom-level">--</div>
+                <p class="card-description">Zoom aplicado pelo usuário (aproximado)</p>
+            </div>
+
+            <!-- Método de Entrada -->
+            <div class="card" id="input-card">
+                <div class="card-header">
+                    <div class="card-icon">👆</div>
+                    <h2 class="card-title">Método de Entrada</h2>
+                </div>
+                <div>
+                    <p><span class="status-indicator" id="touch-indicator"></span> Touch: <span id="touch-status">--</span></p>
+                    <p><span class="status-indicator" id="mouse-indicator"></span> Mouse: <span id="mouse-status">--</span></p>
+                    <p><span class="status-indicator" id="keyboard-indicator"></span> Teclado virtual: <span id="keyboard-status">--</span></p>
+                </div>
+                <div id="input-features"></div>
+            </div>
+        </div>
+
+        <!-- Card do Bouncer -->
+        <div class="card-container">
+            <div class="card card-wide" id="bouncer-card">
+                <div class="card-header">
+                    <div class="card-icon">🎮</div>
+                    <h2 class="card-title">Gato Bouncer</h2>
+                </div>
+                <div id="bouncer-container">
+                    <div id="cat-bouncer">🐱</div>
+                </div>
+                <p class="card-description">O gato ricocheta nas bordas do card, sensível ao tamanho do viewport</p>
+            </div>
+        </div>
+
+        <p id="updated-info">Última atualização: <span id="last-update">--</span></p>
+    </main>
+
+    <footer>
+        <p>Esta ferramenta é apenas para fins educacionais e demonstrativos.</p>
+    </footer>
+
+    <script>
+        // Elementos do DOM
+        const viewportSizeEl = document.getElementById('viewport-size');
+        const aspectRatioEl = document.getElementById('aspect-ratio');
+        const orientationValueEl = document.getElementById('orientation-value');
+        const portraitIconEl = document.getElementById('portrait-icon');
+        const landscapeIconEl = document.getElementById('landscape-icon');
+        const deviceTypeEl = document.getElementById('device-type');
+        const deviceIconEl = document.getElementById('device-icon');
+        const browserInfoEl = document.getElementById('browser-info');
+        const osInfoEl = document.getElementById('os-info');
+        const zoomLevelEl = document.getElementById('zoom-level');
+        const touchIndicatorEl = document.getElementById('touch-indicator');
+        const mouseIndicatorEl = document.getElementById('mouse-indicator');
+        const keyboardIndicatorEl = document.getElementById('keyboard-indicator');
+        const touchStatusEl = document.getElementById('touch-status');
+        const mouseStatusEl = document.getElementById('mouse-status');
+        const keyboardStatusEl = document.getElementById('keyboard-status');
+        const inputFeaturesEl = document.getElementById('input-features');
+        const lastUpdateEl = document.getElementById('last-update');
+        const dimensionsCardEl = document.getElementById('dimensions-card');
+        const ratioCardEl = document.getElementById('ratio-card');
+        const orientationCardEl = document.getElementById('orientation-card');
+        const currentDateEl = document.getElementById('current-date');
+        const currentTimeEl = document.getElementById('current-time');
+        const timezoneInfoEl = document.getElementById('timezone-info');
+        const getLocationBtn = document.getElementById('get-location');
+        const locationInfoEl = document.getElementById('location-info');
+
+
+        // Cache para valores anteriores
+        const previousValues = {
+            width: null,
+            height: null,
+            orientation: null,
+            deviceType: null,
+            zoom: null
+        };
+
+        // Detectar capacidades
+        const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        const hasMouse = matchMedia('(pointer: fine)').matches;
+        const hasKeyboard = 'virtualKeyboard' in navigator;
+
+        // Função para detectar e exibir as dimensões do viewport
+        function updateViewportSize() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            
+            if (previousValues.width !== width || previousValues.height !== height) {
+                viewportSizeEl.textContent = `${width} × ${height}`;
+                dimensionsCardEl.classList.add('update-animation');
+                setTimeout(() => dimensionsCardEl.classList.remove('update-animation'), 500);
+                
+                previousValues.width = width;
+                previousValues.height = height;
+            }
+        }
+
+        // Função para calcular e exibir a proporção do viewport
+        function updateAspectRatio() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            const gcd = calculateGCD(width, height);
+            const ratio = `${width/gcd}:${height/gcd}`;
+            
+            // Simplificação para proporções comuns
+            let commonRatio = '';
+            const actualRatio = width / height;
+            
+            if (Math.abs(actualRatio - 16/9) < 0.1) commonRatio = ' (16:9)';
+            else if (Math.abs(actualRatio - 4/3) < 0.1) commonRatio = ' (4:3)';
+            else if (Math.abs(actualRatio - 21/9) < 0.1) commonRatio = ' (21:9)';
+            else if (Math.abs(actualRatio - 1) < 0.1) commonRatio = ' (1:1)';
+            
+            // Atualizar o texto apenas se mudou
+            if (aspectRatioEl.textContent !== actualRatio.toFixed(2) + commonRatio) {
+                aspectRatioEl.textContent = actualRatio.toFixed(2) + commonRatio;
+                
+                // Atualizar o visualizador de proporção
+                const visualizer = document.getElementById('ratio-visualizer');
+                const container = document.querySelector('.ratio-visualizer-container');
+                
+                // Dimensionamento para caber na visualização
+                const maxWidth = container.clientWidth - 20;
+                const maxHeight = container.clientHeight - 10;
+                
+                let vizWidth, vizHeight;
+                
+                if (actualRatio > 1) {
+                    // Landscape
+                    vizWidth = maxWidth;
+                    vizHeight = vizWidth / actualRatio;
+                    if (vizHeight > maxHeight) {
+                        vizHeight = maxHeight;
+                        vizWidth = vizHeight * actualRatio;
+                    }
+                } else {
+                    // Portrait
+                    vizHeight = maxHeight;
+                    vizWidth = vizHeight * actualRatio;
+                    if (vizWidth > maxWidth) {
+                        vizWidth = maxWidth;
+                        vizHeight = vizWidth / actualRatio;
+                    }
+                }
+                
+                visualizer.style.width = Math.round(vizWidth) + 'px';
+                visualizer.style.height = Math.round(vizHeight) + 'px';
+            }
+        }
+
+        // Função para detectar e exibir a orientação do dispositivo
+        function updateOrientation() {
+            const isPortrait = window.innerHeight > window.innerWidth;
+            const orientation = isPortrait ? 'Retrato' : 'Paisagem';
+            
+            if (previousValues.orientation !== orientation) {
+                orientationValueEl.textContent = orientation;
+                
+                // Atualizar indicadores visuais
+                if (isPortrait) {
+                    portraitIconEl.classList.add('active-orientation');
+                    landscapeIconEl.classList.remove('active-orientation');
+                } else {
+                    landscapeIconEl.classList.add('active-orientation');
+                    portraitIconEl.classList.remove('active-orientation');
+                }
+                
+                orientationCardEl.classList.add('update-animation');
+                setTimeout(() => orientationCardEl.classList.remove('update-animation'), 500);
+                previousValues.orientation = orientation;
+            }
+        }
+
+        // Função para detectar e exibir o tipo de dispositivo
+        function updateDeviceType() {
+            let deviceType;
+            let deviceIcon;
+            
+            if (window.innerWidth <= 767) {
+                deviceType = 'Mobile';
+                deviceIcon = '📱';
+            } else if (window.innerWidth <= 1024) {
+                deviceType = 'Tablet';
+                deviceIcon = '📱';
+            } else {
+                deviceType = 'Desktop';
+                deviceIcon = '💻';
+            }
+            
+            if (previousValues.deviceType !== deviceType) {
+                deviceTypeEl.textContent = deviceType;
+                deviceIconEl.textContent = deviceIcon;
+                previousValues.deviceType = deviceType;
+            }
+        }
+
+        // Função para detectar e exibir informações do navegador e sistema operacional
+        function updateBrowserInfo() {
+            const ua = navigator.userAgent;
+            let browser = 'Desconhecido';
+            let os = 'Desconhecido';
+            
+            // Detectar navegador
+            if (ua.includes('Firefox/')) browser = 'Firefox';
+            else if (ua.includes('Edge/') || ua.includes('Edg/')) browser = 'Edge';
+            else if (ua.includes('Chrome/')) browser = 'Chrome';
+            else if (ua.includes('Safari/') && !ua.includes('Chrome/')) browser = 'Safari';
+            else if (ua.includes('Opera/') || ua.includes('OPR/')) browser = 'Opera';
+            else if (ua.includes('MSIE ') || ua.includes('Trident/')) browser = 'Internet Explorer';
+            
+            // Detectar sistema operacional
+            if (ua.includes('Windows')) {
+                os = 'Windows';
+                if (ua.includes('Windows NT 10.0')) os += ' 10/11';
+                else if (ua.includes('Windows NT 6.3')) os += ' 8.1';
+                else if (ua.includes('Windows NT 6.2')) os += ' 8';
+                else if (ua.includes('Windows NT 6.1')) os += ' 7';
+            } else if (ua.includes('Mac OS X')) {
+                os = 'macOS';
+                const macOSVersion = ua.match(/Mac OS X ([0-9_]+)/);
+                if (macOSVersion) {
+                    const version = macOSVersion[1].replace(/_/g, '.');
+                    if (version.startsWith('10.15')) os += ' Catalina';
+                    else if (version.startsWith('10.14')) os += ' Mojave';
+                    else if (version.startsWith('11')) os += ' Big Sur';
+                    else if (version.startsWith('12')) os += ' Monterey';
+                    else if (version.startsWith('13')) os += ' Ventura';
+                    else if (version.startsWith('14')) os += ' Sonoma';
+                }
+            } else if (ua.includes('Android')) {
+                os = 'Android';
+                const androidVersion = ua.match(/Android ([0-9\.]+)/);
+                if (androidVersion) os += ' ' + androidVersion[1];
+            } else if (ua.includes('iOS')) {
+                os = 'iOS';
+            } else if (ua.includes('Linux')) {
+                os = 'Linux';
+            }
+            
+            browserInfoEl.textContent = browser;
+            osInfoEl.textContent = os;
+        }
+
+        // Função para detectar e exibir o nível de zoom aproximado
+        function updateZoomLevel() {
+            // Método aproximado usando devicePixelRatio
+            const zoom = Math.round(window.devicePixelRatio * 100);
+            
+            if (previousValues.zoom !== zoom) {
+                zoomLevelEl.textContent = `${zoom}%`;
+                previousValues.zoom = zoom;
+            }
+        }
+
+        // Função para detectar e exibir métodos de entrada
+        function updateInputMethods() {
+            // Touch
+            touchIndicatorEl.className = 'status-indicator ' + (hasTouch ? 'active' : 'inactive');
+            touchStatusEl.textContent = hasTouch ? 'Disponível' : 'Não detectado';
+            
+            // Mouse
+            mouseIndicatorEl.className = 'status-indicator ' + (hasMouse ? 'active' : 'inactive');
+            mouseStatusEl.textContent = hasMouse ? 'Disponível' : 'Não detectado';
+            
+            // Teclado virtual
+            const hasVirtualKeyboard = 'virtualKeyboard' in navigator;
+            keyboardIndicatorEl.className = 'status-indicator ' + (hasVirtualKeyboard ? 'active' : 'inactive');
+            keyboardStatusEl.textContent = hasVirtualKeyboard ? 'Disponível' : 'Indeterminado';
+            
+            // Features adicionais
+            inputFeaturesEl.innerHTML = '';
+            
+            // Verificar recursos de entrada adicionais
+            if (window.matchMedia('(hover: hover)').matches) {
+                const tag = document.createElement('span');
+                tag.className = 'feature-tag';
+                tag.textContent = 'Hover disponível';
+                inputFeaturesEl.appendChild(tag);
+            }
+            
+            if (window.matchMedia('(pointer: fine)').matches) {
+                const tag = document.createElement('span');
+                tag.className = 'feature-tag';
+                tag.textContent = 'Cursor preciso';
+                inputFeaturesEl.appendChild(tag);
+            }
+        }
+
+        // Função para atualizar o timestamp
+        function updateTimestamp() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            lastUpdateEl.textContent = timeString;
+        }
+
+        // MDC - Máximo Divisor Comum (algoritmo de Euclides)
+        function calculateGCD(a, b) {
+            return b === 0 ? a : calculateGCD(b, a % b);
+        }
+
+        // Função para atualizar data e hora
+        function updateDateTime() {
+            const now = new Date();
+            
+            // Formatação de data
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            currentDateEl.textContent = now.toLocaleDateString('pt-BR', options);
+            
+            // Formatação de hora
+            currentTimeEl.textContent = now.toLocaleTimeString('pt-BR');
+            
+            // Informações de timezone
+            const timezoneOffset = now.getTimezoneOffset();
+            const hours = Math.abs(Math.floor(timezoneOffset / 60));
+            const minutes = Math.abs(timezoneOffset % 60);
+            const formattedOffset = `GMT${timezoneOffset <= 0 ? '+' : '-'}${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            
+            timezoneInfoEl.textContent = `Fuso horário: ${formattedOffset}`;
+        }
+        
+        // Função para obter a localização
+        function getLocation() {
+            if (navigator.geolocation) {
+                locationInfoEl.textContent = "Obtendo localização...";
+                navigator.geolocation.getCurrentPosition(
+                    // Sucesso
+                    function(position) {
+                        const latitude = position.coords.latitude.toFixed(4);
+                        const longitude = position.coords.longitude.toFixed(4);
+                        locationInfoEl.innerHTML = `<strong>Latitude:</strong> ${latitude}<br><strong>Longitude:</strong> ${longitude}`;
+                    },
+                    // Erro
+                    function(error) {
+                        let message;
+                        switch(error.code) {
+                            case error.PERMISSION_DENIED:
+                                message = "Acesso à localização foi negado pelo usuário.";
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                message = "Informação de localização indisponível.";
+                                break;
+                            case error.TIMEOUT:
+                                message = "Tempo esgotado ao obter localização.";
+                                break;
+                            default:
+                                message = "Erro desconhecido ao obter localização.";
+                        }
+                        locationInfoEl.textContent = message;
+                    }
+                );
+            } else {
+                locationInfoEl.textContent = "Geolocalização não é suportada pelo seu navegador.";
+            }
+        }
+        
+        // Classe para gerenciar o bouncer do gato
+        class CatBouncer {
+            constructor(elementId, containerId) {
+                this.catEl = document.getElementById(elementId);
+                this.containerEl = document.getElementById(containerId);
+                this.x = 50;
+                this.y = 50;
+                this.speedX = 2;
+                this.speedY = 2;
+                this.catWidth = 24;  // Tamanho aproximado do emoji
+                this.catHeight = 24;
+                this.isAnimating = false;
+                this.lastTimestamp = 0;
+                this.fps = 60;
+                this.frameInterval = 1000 / this.fps;
+                
+                // Inicializar posição
+                this.updatePosition();
+                
+                // Adicionar evento de hover para mudar velocidade
+                this.containerEl.addEventListener('mouseenter', () => {
+                    this.speedX = this.speedX * 1.5;
+                    this.speedY = this.speedY * 1.5;
+                    this.catEl.style.transform = 'scale(1.2)';
+                });
+                
+                this.containerEl.addEventListener('mouseleave', () => {
+                    this.speedX = this.speedX / 1.5;
+                    this.speedY = this.speedY / 1.5;
+                    this.catEl.style.transform = 'scale(1)';
+                });
+            }
+            
+            updatePosition() {
+                this.catEl.style.left = `${this.x}px`;
+                this.catEl.style.top = `${this.y}px`;
+            }
+            
+            start() {
+                if (!this.isAnimating) {
+                    this.isAnimating = true;
+                    this.animate();
+                }
+            }
+            
+            animate(timestamp = 0) {
+                if (!this.isAnimating) return;
+                
+                const elapsed = timestamp - this.lastTimestamp;
+                
+                if (elapsed > this.frameInterval) {
+                    this.lastTimestamp = timestamp - (elapsed % this.frameInterval);
+                    
+                    // Calcular os limites do container
+                    const containerWidth = this.containerEl.clientWidth;
+                    const containerHeight = this.containerEl.clientHeight;
+                    
+                    // Atualizar posição
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    
+                    // Verificar colisões com as bordas
+                    if (this.x <= 0 || this.x + this.catWidth >= containerWidth) {
+                        this.speedX = -this.speedX;
+                        this.catEl.textContent = this.catEl.textContent === '🐱' ? '😺' : '🐱';
+                    }
+                    
+                    if (this.y <= 0 || this.y + this.catHeight >= containerHeight) {
+                        this.speedY = -this.speedY;
+                        this.catEl.textContent = this.catEl.textContent === '🐱' ? '😸' : '🐱';
+                    }
+                    
+                    // Manter dentro dos limites (caso ultrapasse)
+                    this.x = Math.max(0, Math.min(this.x, containerWidth - this.catWidth));
+                    this.y = Math.max(0, Math.min(this.y, containerHeight - this.catHeight));
+                    
+                    this.updatePosition();
+                }
+                
+                requestAnimationFrame(this.animate.bind(this));
+            }
+            
+            stop() {
+                this.isAnimating = false;
+            }
+        }
+
+        // Função principal que atualiza todas as informações
+        function updateAllInfo() {
+            updateViewportSize();
+            updateAspectRatio();
+            updateOrientation();
+            updateDeviceType();
+            updateZoomLevel();
+            updateTimestamp();
+            updateDateTime();
+        }
+
+        // Inicialização
+        function init() {
+            // Atualiza informações que não mudam frequentemente
+            updateBrowserInfo();
+            updateInputMethods();
+            
+            // Atualiza informações dinâmicas
+            updateAllInfo();
+            
+            // Configura listeners de eventos
+            window.addEventListener('resize', updateAllInfo);
+            window.addEventListener('orientationchange', updateAllInfo);
+            
+            // Configurar monitoramento de teclado virtual (se disponível)
+            if ('virtualKeyboard' in navigator) {
+                navigator.virtualKeyboard.overlaysContent = true;
+                navigator.virtualKeyboard.addEventListener('geometrychange', updateAllInfo);
+            }
+            
+            // Configurar evento para botão de localização
+            getLocationBtn.addEventListener('click', getLocation);
+            
+            // Iniciar o bouncer do gato
+            const catBouncer = new CatBouncer('cat-bouncer', 'bouncer-container');
+            catBouncer.start();
+            
+            // Atualização periódica (para detectar mudanças como zoom)
+            setInterval(updateAllInfo, 1000);
+        }
+
+        // Iniciar quando o DOM estiver pronto
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
