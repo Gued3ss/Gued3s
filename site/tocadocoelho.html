@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Toca do Coelho</title>
+    <style>
+        /* ==========================================================================
+           1. CORE DESIGN SYSTEM & GLOBAL STYLES
+           ========================================================================== */
+        :root {
+            /* Palette */
+            --c-brown-dark: #4A2E20; --c-brown-medium: #6D4C41; --c-brown-text: #5D4037;
+            --c-green: #4B5B36; --c-yellow: #FBC02D; --c-beige-light: #F5E8D0;
+            --c-beige-bg: #FAF7F2; --c-reddish: #A14A3B; --c-white: #FFFFFF;
+            --c-grey: #757575; --c-border: #E0E0E0; --c-shadow-base: rgba(74, 46, 32, 0.15);
+            /* Semantics */
+            --text-primary: var(--c-brown-dark); --text-secondary: var(--c-brown-text);
+            --bg-app: var(--c-beige-bg); --bg-card: var(--c-white);
+            --border-ui: var(--c-border); --shadow-ui: 0 4px 12px var(--c-shadow-base);
+            --shadow-ui-header: 0 2px 4px var(--c-shadow-base); --shadow-ui-nav: 0 5px 15px var(--c-shadow-base);
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-app); color: var(--text-secondary); padding-bottom: 80px; overflow-x: hidden; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes carrotPulse { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
+        .force-carrot-pulse { animation: carrotPulse 0.3s ease-in-out; }
+
+        /* ==========================================================================
+           2. APP SHELL & NAVIGATION
+           ========================================================================== */
+        .app-container { max-width: 600px; margin: 0 auto; position: relative; }
+        .app-header { background-color: var(--bg-card); padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-ui); box-shadow: var(--shadow-ui-header); position: sticky; top: 0; z-index: 100; transition: transform 0.3s ease; height: 50px; }
+        .app-header.hidden { transform: translateY(-100%); }
+        .header-brand { display: flex; align-items: center; }
+        .app-header-logo { width: 40px; height: 40px; margin-right: 12px; object-fit: contain; }
+        .app-header-title { font-family: 'Lora', serif; font-size: 1.5em; font-weight: 600; color: var(--text-primary); }
+        .header-actions { display: flex; align-items: center; }
+        .contextual-header-button { display: none; background: none; border: none; cursor: pointer; padding: 5px; }
+        .contextual-header-button.visible { display: block; }
+        .contextual-header-button svg { width: 28px; height: 28px; fill: var(--text-primary); }
+        .page-content { display: none; animation: fadeIn 0.4s ease-out; }
+        .page-content.active { display: block; }
+        .page-content.has-header > :first-child { padding-top: 15px; }
+        .bottom-nav { position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; height: 60px; background-color: var(--bg-card); border-radius: 30px; box-shadow: var(--shadow-ui-nav); display: flex; justify-content: space-around; align-items: center; padding: 0 10px; z-index: 1000; overflow: hidden; }
+        .nav-item { background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; height: 100%; color: var(--c-grey); position: relative; z-index: 1; transition: color 0.4s ease; -webkit-tap-highlight-color: transparent; }
+        .nav-item svg { width: 26px; height: 26px; fill: currentColor; transition: transform 0.3s ease; }
+        .nav-item.active { color: var(--c-white); }
+        .nav-item.active svg { transform: translateY(-2px) scale(1.1); }
+        .nav-indicator { position: absolute; left: 0; top: 5px; height: 50px; width: 50px; background-color: var(--c-yellow); border-radius: 50%; z-index: 0; transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), background-color 0.4s ease; }
+
+        /* ==========================================================================
+           3. PAGE-SPECIFIC STYLES
+           ========================================================================== */
+        /* --- Feed Page --- */
+        .feed { padding: 10px; }
+        .post { background-color: var(--bg-card); border-radius: 12px; margin-bottom: 20px; box-shadow: var(--shadow-ui); overflow: hidden; }
+        .post-header { display: flex; align-items: center; padding: 12px 15px; }
+        .post-avatar { width: 40px; height: 40px; border-radius: 50%; margin-right: 10px; object-fit: cover; border: 2px solid var(--border-ui); }
+        .post-user { font-weight: 600; font-size: 0.95em; }
+        .post-image-container { width: 100%; max-height: 500px; overflow: hidden; position: relative; background-color: var(--c-beige-light); cursor: pointer; }
+        .post-image { width: 100%; height: auto; display: block; }
+        .post-content { padding: 15px; line-height: 1.5; font-size: 0.9em; }
+        .post-caption-title { font-weight: bold; margin-bottom: 5px; font-size: 1em; }
+        .post-actions { display: flex; justify-content: space-around; align-items: center; padding: 10px 15px; border-top: 1px solid var(--border-ui); }
+        .action-button { background: none; border: none; cursor: pointer; display: flex; align-items: center; font-size: 0.9em; color: var(--c-grey); transition: color 0.3s ease, opacity 0.3s ease; padding: 5px; }
+        .action-button svg { width: 24px; height: 24px; margin-right: 6px; fill: currentColor; }
+        .like-button .lucide-carrot { stroke: var(--c-grey); fill: none; stroke-width: 2; transition: stroke 0.3s ease, fill 0.3s ease; }
+        .like-button.liked { color: var(--c-yellow); }
+        .like-button.liked .lucide-carrot { stroke: var(--c-yellow); fill: var(--c-yellow); }
+
+        /* --- Menu & Library Commonalities --- */
+        .section-title { font-family: 'Lora', serif; font-size: 1.3em; font-weight: 600; color: var(--text-primary); padding: 20px 15px 10px; text-align: left; }
+        .placeholder-text { padding: 20px; text-align: center; font-size: 0.9em; }
+        
+        /* ===== CAROUSEL PEEK-ABOO STYLES ===== */
+        :root {
+            --carousel-gap: 15px;
+            --carousel-peek: 15px;
+        }
+        .carousel-container {
+            padding-bottom: 20px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            scroll-snap-type: x mandatory;
+            scroll-padding-inline-start: var(--carousel-peek);
+        }
+        .carousel-container::-webkit-scrollbar { display: none; }
+        .carousel {
+            display: flex;
+            gap: var(--carousel-gap);
+            padding-inline: var(--carousel-peek);
+        }
+        .carousel > * {
+            scroll-snap-align: start;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        /* --- Menu Page --- */
+        .main-banner-card { margin: 15px; border-radius: 12px; box-shadow: var(--shadow-ui); overflow: hidden; cursor: pointer; transition: transform 0.2s ease; }
+        .main-banner-card:hover { transform: translateY(-3px); }
+        .main-banner-card .img-container { width: 100%; aspect-ratio: 1000 / 400; background-color: var(--c-beige-light); }
+        .main-banner-card .img-container img { width: 100%; height: 100%; object-fit: cover; }
+        .main-banner-card .banner-content { padding: 15px; }
+        .main-banner-card .banner-title { font-family: 'Lora', serif; font-size: 1.2em; font-weight: 600; color: var(--text-primary); margin-bottom: 5px; }
+        .main-banner-card .banner-description { font-size: 0.9em; line-height: 1.5; }
+        
+        .highlight-item-card {
+            /* CORRECTED: Leaves space for 1 peek and 1 gap, divides the rest for 2 items */
+            flex-basis: calc((100% - var(--carousel-peek) - var(--carousel-gap)) / 2);
+            background-color: var(--bg-card);
+            border-radius: 10px;
+            box-shadow: 0 2px 8px var(--c-shadow-base);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .highlight-item-card .img-container {
+            width: 100%;
+            padding-top: 60%;
+            position: relative;
+        }
+        .highlight-item-card .img-container img {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+        }
+        .highlight-item-card .item-details {
+            padding: 12px 15px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .highlight-item-card .item-name {
+            font-size: 0.9em;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 4px;
+        }
+        .highlight-item-card .item-price {
+            font-size: 0.95em;
+            font-weight: 700;
+            color: var(--c-brown-dark);
+        }
+        .filter-buttons { display: flex; justify-content: space-around; padding: 10px 15px; gap: 10px; flex-wrap: wrap; background-color: var(--bg-card); border-top: 1px solid var(--border-ui); border-bottom: 1px solid var(--border-ui); }
+        .filter-button { padding: 10px 20px; font-size: 0.95em; font-weight: 500; color: var(--text-secondary); background-color: var(--c-beige-light); border: 1px solid var(--c-border); border-radius: 20px; cursor: pointer; transition: background-color 0.3s, color 0.3s, border-color 0.3s; }
+        .filter-button.active { background-color: var(--c-brown-dark); color: var(--c-white); border-color: var(--c-brown-dark); font-weight: 700; }
+        .product-list { padding: 15px; }
+        .product-card { display: flex; background-color: var(--bg-card); border-radius: 10px; box-shadow: 0 2px 8px var(--c-shadow-base); margin-bottom: 15px; overflow: hidden; }
+        .product-card .img-container { width: 100px; height: 100px; flex-shrink: 0; }
+        .product-card .img-container img { width: 100%; height: 100%; object-fit: cover; }
+        .product-details { padding: 10px 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; }
+        .product-details .name { font-family: 'Lora', serif; font-size: 1.1em; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+        .product-details .description { font-size: 0.85em; line-height: 1.4; margin-bottom: 8px; }
+        .product-info-bottom { display: flex; justify-content: space-between; align-items: center; }
+        .product-details .price { font-size: 1em; font-weight: 700; color: var(--c-brown-dark); transition: opacity 0.2s ease-in-out; }
+        .product-options { display: flex; gap: 8px; }
+        .product-option-button { background: none; border: 2px solid var(--c-border); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--c-grey); transition: all 0.3s ease; padding: 0; }
+        .product-option-button svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2px; fill: none; }
+        .product-option-button.active { background-color: var(--c-beige-light); border-color: var(--c-brown-medium); color: var(--c-brown-dark); transform: scale(1.1); }
+        .product-option-button.text-based { border-radius: 18px; width: auto; padding: 0 12px; font-size: 0.85em; font-weight: 600; cursor: default; }
+        
+        /* --- Library Page --- */
+        .search-bar-container { padding: 15px; background-color: var(--bg-card); border-bottom: 1px solid var(--border-ui); }
+        .search-bar { display: flex; align-items: center; background-color: var(--c-beige-bg); border: 1px solid var(--border-ui); border-radius: 25px; padding: 8px 15px; }
+        .search-bar svg { width: 20px; height: 20px; fill: var(--c-grey); margin-right: 8px; }
+        .search-bar input { flex-grow: 1; border: none; background: none; font-size: 1em; color: var(--text-secondary); outline: none; }
+        .promo-cards-container { display: flex; gap: 10px; padding: 15px; }
+        .promo-card { flex: 1; aspect-ratio: 500 / 250; border-radius: 10px; overflow: hidden; cursor: pointer; box-shadow: 0 2px 6px var(--c-shadow-base); }
+        .promo-card img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .book-cover-card {
+            /* CORRECTED: Leaves space for 1 peek and 2 gaps, divides the rest for 3 items */
+            flex-basis: calc((100% - var(--carousel-peek) - (var(--carousel-gap) * 2)) / 3);
+            aspect-ratio: 2 / 3;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px var(--c-shadow-base);
+            overflow: hidden;
+        }
+        .book-cover-card img { width: 100%; height: 100%; object-fit: cover; }
+        .genre-filter-carousel-container { background-color: var(--bg-app); padding: 10px 0; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; border-top: 1px solid var(--border-ui); border-bottom: 1px solid var(--border-ui); }
+        .genre-filter-carousel-container::-webkit-scrollbar { display: none; }
+        .genre-filter-buttons { display: flex; gap: 10px; padding: 0 15px; }
+        .genre-button { flex: 0 0 auto; padding: 8px 18px; font-size: 0.9em; font-weight: 500; background-color: var(--c-beige-light); border: 1px solid var(--border-ui); border-radius: 18px; cursor: pointer; transition: background-color 0.3s, color 0.3s; }
+        .genre-button.active { background-color: var(--c-brown-dark); color: var(--c-white); font-weight: 700; }
+        .catalog-header { display: flex; justify-content: space-between; align-items: center; padding: 15px; background-color: var(--bg-card); border-bottom: 1px solid var(--border-ui); }
+        .catalog-title { font-family: 'Lora', serif; font-size: 1.5em; font-weight: 600; }
+        .sort-button { display: flex; align-items: center; gap: 5px; padding: 8px 12px; background-color: transparent; border: 1px solid var(--border-ui); border-radius: 20px; cursor: pointer; font-size: 0.9em; }
+        .sort-button svg { width: 16px; height: 16px; fill: var(--c-grey); }
+        .book-catalog-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding: 15px; }
+        .book-catalog-item { aspect-ratio: 2 / 3; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 6px var(--c-shadow-base); cursor: pointer; }
+        .book-catalog-item img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* --- Profile Page --- */
+        .profile-placeholder { padding: 20px; text-align: center; display: flex; flex-direction: column; height: 80vh; justify-content: center; }
+        .profile-bouncer-container {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto 20px auto;
+            aspect-ratio: 16 / 9;
+            border: 2px dashed var(--c-border);
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        .bouncer-emoji {
+            position: absolute;
+            font-size: 2.5rem;
+            will-change: transform;
+            user-select: none;
+        }
+        .profile-placeholder .message {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.9em;
+            color: var(--text-secondary);
+        }
+
+    </style>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <header class="app-header" id="appHeader">
+            <div class="header-brand">
+                <img src="https://i.imgur.com/I2qGchk.png" class="app-header-logo" alt="Logo Toca do Coelho">
+                <h1 class="app-header-title">Toca do Coelho</h1>
+            </div>
+            <div class="header-actions">
+                <button class="contextual-header-button" id="cartButton" aria-label="Carrinho">
+                    <svg viewBox="0 0 24 24"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.9 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                </button>
+                <button class="contextual-header-button" id="libraryOptionsButton" aria-label="Opções">
+                    <svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <main id="main-content">
+            <div id="feed-page" class="page-content active"></div>
+            <div id="menu-page" class="page-content"></div>
+            <div id="library-page" class="page-content"></div>
+            <div id="profile-page" class="page-content"></div>
+        </main>
+
+        <nav class="bottom-nav" id="bottomNav">
+            <div class="nav-indicator" id="navIndicator"></div>
+            <!-- Nav items são gerados dinamicamente -->
+        </nav>
+
+    </div>
+
+    <script>
+    /**
+     * @file Toca do Coelho - Single Page Application
+     * @description Arquitetura consolidada que combina os melhores fatores de design,
+     * segurança, performance e manutenibilidade das versões anteriores.
+     * @version Final
+     */
+
+    // ==========================================================================
+    //  1. APP DATA STORE & CONFIGURATION
+    // ==========================================================================
+    const appData = {
+        config: {
+            LIKED_POSTS_STORAGE_KEY: 'tocaDoCoelho_likedPosts_vFinal',
+            DOUBLE_TAP_DELAY: 300
+        },
+        navigation: [
+            { id: 'feed-page', index: 0, color: 'var(--c-yellow)', iconSVG: '<svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>' },
+            { id: 'menu-page', index: 1, color: 'var(--c-brown-medium)', iconSVG: '<svg viewBox="0 0 24 24"><path d="M20 3H4v10c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.11 0 2-.89 2-2V5c0-1.11-.89-2-2-2zm0 5h-2V5h2v3zM4 19h16v2H4z"/></svg>' },
+            { id: 'library-page', index: 2, color: 'var(--c-green)', iconSVG: '<svg viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9 4h2v5l-1-.75L9 9V4zm9 16H6V4h1v9l3-2.25L13 13V4h5v16z"/></svg>' },
+            { id: 'profile-page', index: 3, color: 'var(--c-reddish)', iconSVG: '<svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>' }
+        ],
+        feed: {
+            posts: [
+                { id: 4, user: "Jonas Romana", avatar: "https://i.imgur.com/vhWr8ds.jpeg", image: "https://i.imgur.com/jcWhZLK.jpeg", captionTitle: null, captionText: "só vim pelo café, mas fiquei pelo xadrez", likes: 57, isLiked: false },
+                { id: 5, user: "Clara Menezes", avatar: "https://i.imgur.com/Q2tOJC2.jpeg", image: null, captionTitle: null, captionText: "alguém aí pra trocar um livro por um café?", likes: 10, isLiked: false },
+                { id: 6, user: "Thiago Brandão", avatar: "https://i.imgur.com/wy2nEaN.jpeg", image: null, captionTitle: null, captionText: "café + RPG hoje, quem topa?", likes: 119, isLiked: false },
+                { id: 7, user: "Renata Salles", avatar: "https://i.imgur.com/7VYF7Nm.jpeg", image: "https://i.imgur.com/A5SQ0lI.jpeg", captionTitle: null, captionText: "terminei aquele livro q vcs indicaram, q final!!", likes: 478, isLiked: false },
+                { id: 8, user: "Eduardo Vilela", avatar: "https://i.imgur.com/W2JuOOs.jpeg", image: "https://i.imgur.com/rwi9kJS.jpeg", captionTitle: null, captionText: "expresso + tabuleiro = tarde perfeita", likes: 286, isLiked: false },
+                { id: 9, user: "Lúcia Barreto", avatar: "https://i.imgur.com/QWuWy17.jpeg", image: "https://i.imgur.com/Hjz9sUW.png", captionTitle: null, captionText: "Aqui é um lugar muito bom pra passar a tardezinha enquanto espera o curso de noite.", likes: 198, isLiked: false },
+                { id: 10, user: "Rafael Couto", avatar: "https://i.imgur.com/IcWnwww.jpeg", image: null, captionTitle: null, captionText: "desafio de UNO hj às 18h, valendo brownie!", likes: 441, isLiked: false },
+                { id: 11, user: "Helena Prado", avatar: "https://i.imgur.com/9YZQBOR.jpeg", image: null, captionTitle: null, captionText: "acabei meu livro, bora indicação de outro c/ drama?", likes: 367, isLiked: false },
+                { id: 12, user: "Carlin jó", avatar: "https://i.imgur.com/5xMteNY.jpeg", image: "https://i.imgur.com/IyXCHta.jpeg", captionTitle: null, captionText: "Pó pó po po pó pó de café pó pó", likes: 259, isLiked: false },
+                { id: 13, user: "Viviane Rocha", avatar: "https://i.imgur.com/S3TTRlL.jpeg", image: "https://i.imgur.com/5scYklh.jpeg", captionTitle: null, captionText: "hj tem leitura coletiva e café passado na hora ;)", likes: 76, isLiked: false },
+                { id: 14, user: "Gustavo guedes", avatar: "https://i.imgur.com/Bghzl9B.jpeg", image: "https://i.imgur.com/U4DCtRu.png", captionTitle: null, captionText: "O barista é muito bom, slk", likes: 483, isLiked: false },
+                { id: 15, user: "Alice Liddel", avatar: "https://i.imgur.com/m3MQKvS.png", image: "https://i.imgur.com/NH9vOx2.png", captionTitle: null, captionText: "Já voltei a essa loja mais de vinte vezes, não tem como não resistir a um coelhinho desses", likes: 338, isLiked: false }
+            ],
+            doubleTapTrack: {}
+        },
+        menu: {
+            banner: { id: "banner01", imageUrl: "https://i.imgur.com/3dSqniv.png", altText: "Nossos baristas especialistas", title: "A Arte do Café Especial", description: "Nossos baristas criam mais do que bebidas, criam experiências. Venha provar a diferença que a paixão faz." },
+            highlights: [
+                { id: "p102", name: "Expresso", imageUrl: "https://i.imgur.com/8kGLK3z.png" },
+                { id: "p308", name: "Bolo de Cenoura c/ Calda de Chocolate", imageUrl: "https://i.imgur.com/jpMnDGO.jpeg" },
+                { id: "p403", name: "Coxinha", imageUrl: "https://i.imgur.com/As0o8mz.jpeg" },
+                { id: "p103", name: "Latte", imageUrl: "https://i.imgur.com/XLZsipA.jpeg" },
+                { id: "p401", name: "Pão de Queijo", imageUrl: "https://i.imgur.com/V2hGULo.jpeg" },
+                { id: "p313", name: "Cupcake de Banana", imageUrl: "https://i.imgur.com/eg5yi60.png" },
+                { id: "p408", name: "Misto Quente", imageUrl: "https://i.imgur.com/9Mq12AU.jpeg" }
+            ],
+            products: [
+                { id: "p101", name: "Café Puro", imageUrl: "https://i.imgur.com/h5bXCSD.jpeg", category: "bebidas", description: "Café tradicional servido em três tamanhos.", options: [ { size: "Copinho (100ml)", price: "R$ 1,00" }, { size: "Copo médio (200ml)", price: "R$ 2,00" }, { size: "Copo grande (400ml)", price: "R$ 4,00" } ] },
+                { id: "p102", name: "Expresso", imageUrl: "https://i.imgur.com/8kGLK3z.png", category: "bebidas", description: "Espresso intenso de alta qualidade.", price: "R$ 7,99" },
+                { id: "p103", name: "Latte", imageUrl: "https://i.imgur.com/XLZsipA.jpeg", category: "bebidas", description: "Espresso com leite vaporizado para um sabor suave.", price: "R$ 6,99" },
+                { id: "p104", name: "Mix Café e Leite", imageUrl: "https://i.imgur.com/EIEWXOP.jpeg", category: "bebidas", description: "Meia dose de café, meia de leite, disponível em três tamanhos.", options: [ { size: "Copinho (100ml)", price: "R$ 1,00" }, { size: "Copo médio (200ml)", price: "R$ 2,00" }, { size: "Copo grande (400ml)", price: "R$ 4,00" } ] },
+                { id: "p105", name: "Cafés Especiais", imageUrl: "https://i.imgur.com/wfjKNB7.jpeg", category: "bebidas", description: "Taxa fixa mais variação conforme ingredientes e complexidade.", price: "R$ 8,00" },
+                { id: "p106", name: "Chocolate Quente", imageUrl: "https://i.imgur.com/jXEb3e3.jpeg", category: "bebidas", description: "Chocolate cremoso servido em três tamanhos.", options: [ { size: "Copinho (100ml)", price: "R$ 5,00" }, { size: "Copo médio (200ml)", price: "R$ 7,00" }, { size: "Copo grande (400ml)", price: "R$ 10,00" } ] },
+                { id: "p201", name: "Chá Variado", imageUrl: "https://i.imgur.com/aZvx364.jpeg", category: "bebidas", description: "Chás diversos de sua preferência.", price: "R$ 4,00" },
+                { id: "p202", name: "Suco Simples", imageUrl: "https://i.imgur.com/3BUXe7E.jpeg", category: "bebidas", description: "Sucos de frutas frescas em três formatos.", options: [ { size: "Copinho", price: "R$ 2,00" }, { size: "Copo", price: "R$ 5,00" }, { size: "Jarra", price: "R$ 10,00" } ] },
+                { id: "p203", name: "Suco Misto", imageUrl: "https://i.imgur.com/U0ogJWY.jpeg", category: "bebidas", description: "Sucos mistos ou ao leite em três formatos.", options: [ { size: "Copinho", price: "R$ 3,00" }, { size: "Copo", price: "R$ 6,00" }, { size: "Jarra", price: "R$ 11,00" } ] },
+                { id: "p301", name: "Fatia de Bolo", imageUrl: "https://i.imgur.com/BqljYN9.jpeg", category: "doces", description: "Fatia de bolo por grama.", options: [ { size: "100g", price: "R$ 7,50" } ] },
+                { id: "p302", name: "Torta de Limão Siciliano", imageUrl: "https://i.imgur.com/jNk6DCz.jpeg", category: "doces", description: "Torta cítrica com massa crocante.", options: [ { size: "200g", price: "R$ 5,00" } ] },
+                { id: "p303", name: "Torta de Maçã", imageUrl: "https://i.imgur.com/th0pJdA.jpeg", category: "doces", description: "Torta recheada com maçã.", options: [ { size: "200g", price: "R$ 5,00" } ] },
+                { id: "p304", name: "Torta de Tomate", imageUrl: "https://i.imgur.com/JIm75U0.jpeg", category: "doces", description: "Torta salgada de tomate adaptada como doce.", options: [ { size: "200g", price: "R$ 5,00" } ] },
+                { id: "p305", name: "Brigadeiro", imageUrl: "https://i.imgur.com/YeQQOKp.png", category: "doces", description: "Doce tradicional brasileiro.", options: [ { size: "100g", price: "R$ 3,00" } ] },
+                { id: "p306", name: "Beijinho", imageUrl: "https://i.imgur.com/ZaNkBZt.png", category: "doces", description: "Doce de coco com leite condensado.", options: [ { size: "100g", price: "R$ 3,00" } ] },
+                { id: "p307", name: "Brigadeiro de Cenoura", imageUrl: "https://i.imgur.com/MZpy7F5.png", category: "doces", description: "Versão de brigadeiro com cenoura.", options: [ { size: "100g", price: "R$ 8,00" } ] },
+                { id: "p308", name: "Bolo de Cenoura c/ Calda de Chocolate", imageUrl: "https://i.imgur.com/jpMnDGO.jpeg", category: "doces", description: "Bolo caseiro com calda de chocolate.", options: [ { size: "100g", price: "R$ 9,50" } ] },
+                { id: "p309", name: "Bolo de Fubá", imageUrl: "https://i.imgur.com/XIywjju.jpeg", category: "doces", description: "Bolo tradicional de fubá.", options: [ { size: "100g", price: "R$ 9,50" } ] },
+                { id: "p310", name: "Bolo de Coco", imageUrl: "https://i.imgur.com/3wcW01I.jpeg", category: "doces", description: "Bolo com coco fresco.", options: [ { size: "100g", price: "R$ 9,50" } ] },
+                { id: "p311", name: "Bolo de Laranja", imageUrl: "https://i.imgur.com/58ZSoM4.jpeg", category: "doces", description: "Bolo cítrico de laranja.", options: [ { size: "100g", price: "R$ 9,50" } ] },
+                { id: "p312", name: "Bolo de Chocolate", imageUrl: "https://i.imgur.com/BqljYN9.jpeg", category: "doces", description: "Bolo rico em chocolate.", options: [ { size: "100g", price: "R$ 9,50" } ] },
+                { id: "p313", name: "Cupcake de Banana", imageUrl: "https://i.imgur.com/eg5yi60.png", category: "doces", description: "Cupcake de banana com massa macia.", options: [ { size: "100g", price: "R$ 9,50" } ] },
+                { id: "p401", name: "Pão de Queijo", imageUrl: "https://i.imgur.com/V2hGULo.jpeg", category: "salgados", description: "Pão de queijo quentinho.", options: [ { size: "100g", price: "R$ 3,50" } ] },
+                { id: "p402", name: "Empada", imageUrl: "https://i.imgur.com/l6jE59S.jpeg", category: "salgados", description: "Empada recheada.", price: "R$ 5,00" },
+                { id: "p403", name: "Coxinha", imageUrl: "https://i.imgur.com/As0o8mz.jpeg", category: "salgados", description: "Coxinha tradicional.", price: "R$ 5,00" },
+                { id: "p404", name: "Enroladinho de Salsicha", imageUrl: "https://i.imgur.com/8wUGJsH.jpeg", category: "salgados", description: "Enroladinho com salsicha.", price: "R$ 5,00" },
+                { id: "p405", name: "Esfiha", imageUrl: "https://i.imgur.com/pUGdlVC.jpeg", category: "salgados", description: "Esfiha bovina.", price: "R$ 5,00" },
+                { id: "p406", name: "Hamburgão", imageUrl: "https://i.imgur.com/gt8orBO.png", category: "salgados", description: "Hambúrguer artesanal.", price: "R$ 5,00" },
+                { id: "p407", name: "Brotinho de Pizza", imageUrl: "https://i.imgur.com/xQLgDND.png", category: "salgados", description: "Mini pizza individual.", price: "R$ 7,00" },
+                { id: "p408", name: "Misto Quente", imageUrl: "https://i.imgur.com/9Mq12AU.jpeg", category: "salgados", description: "Sanduíche de presunto e queijo.", price: "R$ 5,00" },
+                { id: "p409", name: "Pão com Manteiga", imageUrl: "https://i.imgur.com/g4iI2GU.png", category: "salgados", description: "Pão na chapa com manteiga.", price: "R$ 3,00" },
+                { id: "p410", name: "Pão na Chapa", imageUrl: "https://i.imgur.com/P7mURVY.jpeg", category: "salgados", description: "Pão servido na chapa.", price: "R$ 3,00" }
+            ],
+            categories: ["bebidas", "doces", "salgados"]
+        },
+        library: {
+            promoCards: [ { id: "promo01", imageUrl: "https://i.imgur.com/OMZyWAg.png", altText: "Jogue com os amigos" }, { id: "promo02", imageUrl: "https://i.imgur.com/YajAZWm.png", altText: "Eventos na Toca" } ],
+            popularBooks: [
+                { id: "cat015", title: "Capitães da Areia", coverImageUrl: "https://i.imgur.com/SvTR85I.jpeg" },
+                { id: "cat011", title: "A Metamorfose", coverImageUrl: "https://i.imgur.com/T7tI0Ts.jpeg" },
+                { id: "cat016", title: "Labirinto do Fauno", coverImageUrl: "https://i.imgur.com/A43vYKT.jpeg" },
+                { id: "cat018", title: "O Corvo", coverImageUrl: "https://i.imgur.com/v6q00tP.jpeg" },
+                { id: "cat021", title: "Dom Casmurro", coverImageUrl: "https://i.imgur.com/boZdUs0.jpeg" },
+                { id: "cat010", title: "E Se Gatos Desaparecessem do Mundo", coverImageUrl: "https://i.imgur.com/BZz0lHo.jpeg" },
+                { id: "cat009", title: "A Divina Comédia", coverImageUrl: "https://i.imgur.com/KUezcHV.jpeg" }
+            ],
+            genres: ["Todos", "Ficção", "Fantasia", "Romance", "Suspense", "Clássicos"],
+            catalogBooks: [
+                { id: "cat009", title: "A Divina Comédia", author: "Dante Alighieri", coverImageUrl: "https://i.imgur.com/KUezcHV.jpeg", sinopse: "Uma viagem alegórica pelo Inferno, Purgatório e Paraíso, onde o poeta explora temas sobre a alma e o destino humano.", genre: ["Fantasia","Clássicos"], price: 90.00, publishDate: "1320-01-01" },
+                { id: "cat010", title: "E Se Gatos Desaparecessem do Mundo", author: "Genki Kawamura", coverImageUrl: "https://i.imgur.com/BZz0lHo.jpeg", sinopse: "Um jovem recebe uma missão misteriosa que o faz refletir sobre o valor da vida e as pequenas coisas que a tornam especial.", genre: ["Ficção"], price: 25.00, publishDate: "2015-01-01" },
+                { id: "cat011", title: "A Metamorfose", author: "Franz Kafka", coverImageUrl: "https://i.imgur.com/T7tI0Ts.jpeg", sinopse: "Gregor Samsa acorda transformado em um inseto gigante, enfrentando o isolamento e o desespero dentro da própria família.", genre: ["Suspense","Clássicos"], price: 25.00, publishDate: "1915-11-01" },
+                { id: "cat012", title: "O Alienista", author: "Machado de Assis", coverImageUrl: "https://i.imgur.com/iv879nY.jpeg", sinopse: "Um médico tenta definir a loucura em uma cidade, levando a questionamentos sobre razão e insanidade.", genre: ["Clássicos"], price: 25.00, publishDate: "1882-01-01" },
+                { id: "cat013", title: "Memórias Póstumas de Brás Cubas", author: "Machado de Assis", coverImageUrl: "https://i.imgur.com/Z9Xhqii.jpeg", sinopse: "Narrado pelo defunto Brás Cubas, o livro aborda sua vida e reflexões irônicas sobre a sociedade brasileira do século XIX.", genre: ["Romance","Clássicos"], price: 25.00, publishDate: "1881-01-01" },
+                { id: "cat014", title: "Vidas Secas", author: "Graciliano Ramos", coverImageUrl: "https://i.imgur.com/qIUyAKb.jpeg", sinopse: "A luta de uma família pobre no sertão nordestino contra a seca, a fome e a injustiça social.", genre: ["Clássicos"], price: 25.00, publishDate: "1938-01-01" },
+                { id: "cat015", title: "Capitães da Areia", author: "Jorge Amado", coverImageUrl: "https://i.imgur.com/SvTR85I.jpeg", sinopse: "A vida de meninos de rua em Salvador, entre o crime, a amizade e a busca por um futuro melhor.", genre: ["Romance","Clássicos"], price: 25.00, publishDate: "1937-01-01" },
+                { id: "cat016", title: "Labirinto do Fauno", author: "Guillermo Del Toro", coverImageUrl: "https://i.imgur.com/A43vYKT.jpeg", sinopse: "Durante a Guerra Civil Espanhola, uma menina descobre um mundo fantástico que se mistura com a dura realidade ao seu redor.", genre: ["Fantasia"], price: 25.00, publishDate: "2006-10-11" },
+                { id: "cat017", title: "A Odisseia", author: "Homero", coverImageUrl: "https://i.imgur.com/su06joE.jpeg", sinopse: "A épica jornada de Odisseu tentando voltar para casa após a Guerra de Troia, enfrentando monstros e desafios divinos.", genre: ["Fantasia","Clássicos"], price: 90.00, publishDate: "0800-01-01" },
+                { id: "cat018", title: "O Corvo", author: "Edgar Allan Poe", coverImageUrl: "https://i.imgur.com/v6q00tP.jpeg", sinopse: "Um homem é assombrado pela visita de um corvo misterioso que o confronta com sua dor e perda.", genre: ["Suspense","Fantasia"], price: 15.00, publishDate: "1845-01-29" },
+                { id: "cat019", title: "O Jardim Secreto", author: "Frances Hodgson Burnett", coverImageUrl: "https://i.imgur.com/Ovt4sn3.jpeg", sinopse: "Uma menina encontra um jardim abandonado que transforma sua vida e a de quem está ao seu redor.", genre: ["Fantasia"], price: 25.00, publishDate: "1911-01-01" },
+                { id: "cat020", title: "Feliz Ano Velho", author: "Marcelo Rubens Paiva", coverImageUrl: "https://i.imgur.com/KquhvRj.jpeg", sinopse: "Relato autobiográfico sobre a vida após um acidente que deixa o autor tetraplégico, cheio de humor e reflexão.", genre: ["Ficção"], price: 25.00, publishDate: "1982-01-01" },
+                { id: "cat021", title: "Dom Casmurro", author: "Machado de Assis", coverImageUrl: "https://i.imgur.com/boZdUs0.jpeg", sinopse: "A história de amor e ciúmes de Bentinho, que questiona a fidelidade de Capitu e as nuances da memória.", genre: ["Romance","Clássicos"], price: 25.00, publishDate: "1899-01-01" },
+                { id: "cat022", title: "Assim Falava Zaratustra", author: "Friedrich Nietzsche", coverImageUrl: "https://i.imgur.com/FYO1a24.jpeg", sinopse: "Um profeta filosófico que prega a superação do homem e a criação de novos valores.", genre: ["Ficção","Clássicos"], price: 60.00, publishDate: "1883-01-01" }
+            ]
+        }
+    };
+    
+    /**
+     * @namespace App
+     * @description Orquestrador principal da aplicação.
+     */
+    const App = {
+        ui: {},
+        modules: {},
+
+        init: function() {
+            lucide.createIcons();
+            this.cacheDOMElements();
+            this.registerModules();
+            this.renderNavigation();
+            this.setupEventListeners();
+            this.activatePage('feed-page');
+        },
+
+        cacheDOMElements: function() {
+            this.ui = {
+                appHeader: document.getElementById('appHeader'),
+                mainContent: document.getElementById('main-content'),
+                bottomNav: document.getElementById('bottomNav'),
+                navIndicator: document.getElementById('navIndicator'),
+                cartButton: document.getElementById('cartButton'),
+                libraryOptionsButton: document.getElementById('libraryOptionsButton')
+            };
+        },
+
+        registerModules: function() {
+            this.modules = {
+                'feed-page': feedModule,
+                'menu-page': menuModule,
+                'library-page': libraryModule,
+                'profile-page': profileModule
+            };
+        },
+
+        renderNavigation: function() {
+            appData.navigation.forEach(navInfo => {
+                const navItem = document.createElement('button');
+                navItem.className = 'nav-item';
+                navItem.dataset.page = navInfo.id;
+                navItem.dataset.index = navInfo.index;
+                navItem.dataset.color = navInfo.color;
+                navItem.innerHTML = navInfo.iconSVG;
+                this.ui.bottomNav.appendChild(navItem);
+            });
+            this.ui.navItems = document.querySelectorAll('.nav-item');
+            
+            setTimeout(() => {
+                const initialActive = this.ui.bottomNav.querySelector('.nav-item');
+                if (initialActive) {
+                    initialActive.classList.add('active');
+                    this.updateNavigationIndicator(0, appData.navigation[0].color);
+                }
+            }, 100);
+        },
+        
+        setupEventListeners: function() {
+            this.ui.bottomNav.addEventListener('click', (event) => {
+                const navItem = event.target.closest('.nav-item');
+                if (navItem) {
+                    this.handleNavigation(navItem);
+                }
+            });
+            this.ui.cartButton.addEventListener('click', () => alert("Carrinho em breve!"));
+            this.ui.libraryOptionsButton.addEventListener('click', () => alert("Opções da livraria em breve!"));
+        },
+
+        handleNavigation: function(navItem) {
+            const pageId = navItem.dataset.page;
+            const index = parseInt(navItem.dataset.index);
+            const color = navItem.dataset.color;
+
+            this.updateNavigationIndicator(index, color);
+            this.activatePage(pageId);
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        },
+        
+        activatePage: function(pageId) {
+            Object.keys(this.modules).forEach(id => {
+                 document.getElementById(id)?.classList.remove('active', 'has-header');
+            });
+
+            const targetPage = document.getElementById(pageId);
+            if (!targetPage) return;
+            targetPage.classList.add('active');
+            
+            const pagesWithHeader = ['feed-page', 'menu-page', 'library-page'];
+            const showHeader = pagesWithHeader.includes(pageId);
+            this.ui.appHeader.classList.toggle('hidden', !showHeader);
+            if (showHeader) targetPage.classList.add('has-header');
+
+            this.ui.cartButton.classList.toggle('visible', pageId === 'menu-page');
+            this.ui.libraryOptionsButton.classList.toggle('visible', pageId === 'library-page');
+
+            const module = this.modules[pageId];
+            if (module && typeof module.init === 'function') {
+                module.init();
+            }
+        },
+
+        updateNavigationIndicator: function(activeIndex, newColor) {
+            const activeItem = this.ui.navItems[activeIndex];
+            if (!activeItem) return;
+            this.ui.navItems.forEach(item => item.classList.remove('active'));
+            activeItem.classList.add('active');
+
+            const itemOffsetLeft = activeItem.offsetLeft;
+            const itemWidth = activeItem.offsetWidth;
+            const indicatorWidth = this.ui.navIndicator.offsetWidth;
+            const translateX = itemOffsetLeft + (itemWidth / 2) - (indicatorWidth / 2);
+
+            this.ui.navIndicator.style.transform = `translateX(${translateX}px)`;
+            this.ui.navIndicator.style.backgroundColor = newColor;
+        }
+    };
+
+    /**
+     * @namespace BaseModule
+     * @description Um objeto base para reutilizar a lógica de renderização segura.
+     */
+    const BaseModule = {
+        render: function(container, items, createFn, itemClass = '') {
+            if (!container) return;
+            container.innerHTML = '';
+            if (!items || items.length === 0) {
+                const p = document.createElement('p');
+                p.className = 'placeholder-text';
+                p.textContent = `Nenhum ${itemClass} encontrado.`;
+                container.appendChild(p);
+            } else {
+                items.forEach(item => container.appendChild(createFn(item)));
+            }
+        }
+    };
+    
+    /**
+     * @function handleCarouselClick
+     * @description Handles clicks on carousel items, scrolling the clicked item to the start of the snap area.
+     */
+    const handleCarouselClick = function(event) {
+        const card = event.target.closest('.highlight-item-card, .book-cover-card');
+        if (!card) return;
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+    };
+
+    /**
+     * @namespace feedModule
+     * @description Gerencia a lógica do feed social.
+     */
+    const feedModule = {
+        isInitialized: false,
+        CARROT_ICON_SVG: '<svg class="lucide lucide-carrot" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.27 21.7s9.87-3.5 12.73-6.36a4.5 4.5 0 0 0-6.36-6.37C5.77 11.84 2.27 21.7 2.27 21.7z"/><path d="M8.64 14l-2.05-2.04M15.34 15l-2.46-2.46"/><path d="M22 9s-1.33-2-3.5-2C16.86 7 15 9 15 9s1.33 2 3.5 2S22 9 22 9z"/><path d="M15 2s-2 1.33-2 3.5S15 9 15 9s2-1.84 2-3.5C17 3.33 15 2 15 2z"/></svg>',
+
+        init: function() {
+            if (this.isInitialized) return;
+            this.ui = { container: document.getElementById('feed-page') };
+            this.loadLikesFromStorage();
+            this.render();
+            this.ui.container.addEventListener('click', this.handleFeedClick.bind(this));
+            this.ui.container.addEventListener('animationend', (e) => {
+                if (e.animationName === 'carrotPulse') e.target.classList.remove('force-carrot-pulse');
+            });
+            this.isInitialized = true;
+        },
+        
+        render: function() {
+            const feedContainer = document.createElement('div');
+            feedContainer.className = 'feed';
+            BaseModule.render(feedContainer, appData.feed.posts, this.createPostElement.bind(this), 'post');
+            this.ui.container.innerHTML = '';
+            this.ui.container.appendChild(feedContainer);
+            this.updateAllPostVisuals();
+        },
+        
+        createPostElement: function(post) {
+            const el = document.createElement('div');
+            el.className = 'post';
+            el.dataset.postId = post.id;
+            const header = document.createElement('div');
+            header.className = 'post-header';
+            header.innerHTML = `<img src="${post.avatar}" alt="${post.user}'s avatar" class="post-avatar"><span class="post-user">${post.user}</span>`;
+            el.appendChild(header);
+            if (post.image) {
+                const imgContainer = document.createElement('div');
+                imgContainer.className = 'post-image-container';
+                imgContainer.dataset.action = 'double-tap-like';
+                imgContainer.innerHTML = `<img src="${post.image}" alt="Imagem do post de ${post.user}" class="post-image" loading="lazy">`;
+                el.appendChild(imgContainer);
+            }
+            const content = document.createElement('div');
+            content.className = 'post-content';
+            if (post.captionTitle) {
+                const title = document.createElement('div');
+                title.className = 'post-caption-title';
+                title.textContent = post.captionTitle;
+                content.appendChild(title);
+            }
+            const text = document.createElement('p');
+            text.textContent = post.captionText;
+            content.appendChild(text);
+            el.appendChild(content);
+            const actions = document.createElement('div');
+            actions.className = 'post-actions';
+            actions.innerHTML = `<button class="action-button like-button" data-action="like">${this.CARROT_ICON_SVG}<span class="like-count"></span></button><button class="action-button" data-action="comment"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>Comentar</button><button class="action-button" data-action="share"><svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>Compart.</button>`;
+            el.appendChild(actions);
+            return el;
+        },
+        updateAllPostVisuals: function() { appData.feed.posts.forEach(post => { const postEl = this.ui.container.querySelector(`.post[data-post-id="${post.id}"]`); if(postEl) this.updatePostUIVisuals(post.id, postEl); }); },
+        updatePostUIVisuals: function(postId, postElement) { const postData = this.getPostById(postId); if (!postData || !postElement) return; const likeButton = postElement.querySelector('.like-button'); if(likeButton) { likeButton.querySelector('.like-count').textContent = postData.likes; likeButton.classList.toggle('liked', postData.isLiked); } },
+        handleFeedClick: function(event) { const postElement = event.target.closest('.post'); if (!postElement) return; const postId = postElement.dataset.postId; const actionTarget = event.target.closest('[data-action]'); if (!actionTarget) return; const action = actionTarget.dataset.action; if (action === 'like') { if (this.togglePostLikeState(postId)) { this.updatePostUIVisuals(postId, postElement); } } else if (action === 'double-tap-like') { const now = Date.now(); const lastTap = appData.feed.doubleTapTrack[postId] || 0; if (now - lastTap < appData.config.DOUBLE_TAP_DELAY) { delete appData.feed.doubleTapTrack[postId]; const post = this.getPostById(postId); if (post && !post.isLiked) { this.togglePostLikeState(postId); this.updatePostUIVisuals(postId, postElement); } postElement.querySelector('.lucide-carrot')?.classList.add('force-carrot-pulse'); } else { appData.feed.doubleTapTrack[postId] = now; } } },
+        loadLikesFromStorage: function() { try { const likedPostIds = JSON.parse(localStorage.getItem(appData.config.LIKED_POSTS_STORAGE_KEY)) || []; appData.feed.posts.forEach(post => post.isLiked = likedPostIds.includes(post.id)); } catch (e) { console.error("Failed to load likes from storage", e); } },
+        saveLikesToStorage: function() { try { const likedPostIds = appData.feed.posts.filter(post => post.isLiked).map(post => post.id); localStorage.setItem(appData.config.LIKED_POSTS_STORAGE_KEY, JSON.stringify(likedPostIds)); } catch (e) { console.error("Failed to save likes to storage", e); } },
+        getPostById: function(postId) { return appData.feed.posts.find(p => p.id === parseInt(postId)); },
+        togglePostLikeState: function(postId) { const post = this.getPostById(postId); if (!post) return false; post.isLiked ? post.likes-- : post.likes++; post.isLiked = !post.isLiked; this.saveLikesToStorage(); return true; }
+    };
+
+    /**
+     * @namespace menuModule
+     * @description Gerencia a lógica do cardápio com opções interativas.
+     */
+    const menuModule = {
+        isInitialized: false,
+        currentActiveFilter: null,
+
+        init: function() {
+            if (this.isInitialized) return;
+            this.ui = { container: document.getElementById('menu-page') };
+            this.render();
+            this.ui.filterButtons.addEventListener('click', this.handleFilterClick.bind(this));
+            this.ui.productList.addEventListener('click', this.handleProductClick.bind(this));
+            this.ui.highlightsCarousel.parentElement.addEventListener('click', handleCarouselClick);
+            this.isInitialized = true;
+        },
+
+        render: function() { this.ui.container.innerHTML = `<section class="main-banner-card"></section><section><h2 class="section-title">DESTAQUE DA SEMANA</h2><div class="carousel-container highlights-carousel-container"><div class="carousel highlights-carousel"></div></div></section><section class="filter-buttons"></section><section class="product-list"></section>`; this.ui.bannerContainer = this.ui.container.querySelector('.main-banner-card'); this.ui.highlightsCarousel = this.ui.container.querySelector('.highlights-carousel'); this.ui.filterButtons = this.ui.container.querySelector('.filter-buttons'); this.ui.productList = this.ui.container.querySelector('.product-list'); BaseModule.render(this.ui.bannerContainer, [appData.menu.banner], this.createBannerCard); const highlightData = appData.menu.highlights.map(h => appData.menu.products.find(p => p.id === h.id) || h); BaseModule.render(this.ui.highlightsCarousel, highlightData, this.createHighlightCard.bind(this), 'destaque'); BaseModule.render(this.ui.filterButtons, appData.menu.categories, this.createFilterButton); this.renderProductList(appData.menu.products); },
+        createBannerCard: function(data) { const card = document.createElement('div'); card.innerHTML = `<div class="img-container"><img src="${data.imageUrl}" alt="${data.altText}"></div><div class="banner-content"><h3 class="banner-title">${data.title}</h3><p class="banner-description">${data.description}</p></div>`; return card.firstChild; },
+        createHighlightCard: function(item) { const card = document.createElement('div'); card.className = 'highlight-item-card'; let price = item.price; if (!price && item.options && item.options.length > 0) { price = item.options[0].price; } price = price || '---'; card.innerHTML = `<div class="img-container"><img src="${item.imageUrl}" alt="${item.name}" loading="lazy"></div><div class="item-details"><span class="item-name">${item.name}</span><span class="item-price">${price}</span></div>`; return card; },
+        createFilterButton: function(category) { const button = document.createElement('button'); button.className = 'filter-button'; button.dataset.category = category; button.textContent = category.charAt(0).toUpperCase() + category.slice(1); return button; },
+        getIconForSize: function(size) { const s = size.toLowerCase(); if (s.includes('pequeno') || s.includes('copinho')) return 'coffee'; if (s.includes('médio') || s.includes('copo')) return 'glass-water'; if (s.includes('grande') || s.includes('jarra')) return 'beaker'; return 'scale'; },
+        createProductCard: function(product) { const card = document.createElement('div'); card.className = 'product-card'; let infoBottomHtml = ''; if (product.options) { if (product.options.length === 1) { const option = product.options[0]; infoBottomHtml = `<span class="price">${option.price}</span><div class="product-options"><button class="product-option-button text-based active" title="${option.size}">${option.size}</button></div>`; } else { const optionsHtml = product.options.map((opt, index) => `<button class="product-option-button ${index === 0 ? 'active' : ''}" data-price="${opt.price}" title="${opt.size}"><i data-lucide="${this.getIconForSize(opt.size)}"></i></button>`).join(''); infoBottomHtml = `<span class="price">${product.options[0].price}</span><div class="product-options">${optionsHtml}</div>`; } } else { infoBottomHtml = `<span class="price">${product.price}</span>`; } card.innerHTML = `<div class="img-container"><img src="${product.imageUrl}" alt="${product.name}" loading="lazy"></div><div class="product-details"><h3 class="name">${product.name}</h3><p class="description">${product.description}</p><div class="product-info-bottom">${infoBottomHtml}</div></div>`; return card; },
+        handleProductClick: function(event) { const optionButton = event.target.closest('.product-option-button'); if (!optionButton || optionButton.classList.contains('text-based')) return; const productCard = optionButton.closest('.product-card'); const priceEl = productCard.querySelector('.price'); const newPrice = optionButton.dataset.price; priceEl.style.opacity = 0; setTimeout(() => { priceEl.textContent = newPrice; priceEl.style.opacity = 1; }, 150); const optionsContainer = optionButton.parentElement; optionsContainer.querySelector('.active')?.classList.remove('active'); optionButton.classList.add('active'); },
+        renderProductList: function(products) { BaseModule.render(this.ui.productList, products, this.createProductCard.bind(this), 'produto'); lucide.createIcons(); },
+        handleFilterClick: function(event) { const button = event.target.closest('.filter-button'); if (!button) return; const category = button.dataset.category; if (this.currentActiveFilter === category) { this.currentActiveFilter = null; button.classList.remove('active'); } else { this.ui.filterButtons.querySelector('.active')?.classList.remove('active'); button.classList.add('active'); this.currentActiveFilter = category; } const filteredProducts = this.currentActiveFilter ? appData.menu.products.filter(p => p.category === this.currentActiveFilter) : appData.menu.products; this.renderProductList(filteredProducts); }
+    };
+    
+    /**
+     * @namespace libraryModule
+     * @description Gerencia a lógica da estante de livros.
+     */
+    const libraryModule = {
+        isInitialized: false,
+        currentSort: { field: 'title', order: 'asc' },
+        currentGenreFilter: 'Todos',
+        init: function() { if (this.isInitialized) return; this.ui = { container: document.getElementById('library-page') }; this.render(); this.setupEventListeners(); this.isInitialized = true; },
+        render: function() { this.ui.container.innerHTML = `<section class="search-bar-container"></section><section class="promo-cards-container"></section><section><h2 class="section-title">Popular</h2><div class="carousel-container books-carousel-container"><div class="carousel books-carousel"></div></div></section><div class="genre-filter-carousel-container"><div class="genre-filter-buttons"></div></div><section><div class="catalog-header"><h2 class="catalog-title">Catálogo</h2><button class="sort-button"></button></div><div class="book-catalog-grid"></div></section>`; this.cacheModuleDOMElements(); this.renderAllSections(); },
+        cacheModuleDOMElements: function() { const c = this.ui.container; this.ui.searchInput = c.querySelector('.search-bar-container'); this.ui.promoCards = c.querySelector('.promo-cards-container'); this.ui.popularBooks = c.querySelector('.books-carousel'); this.ui.genreButtons = c.querySelector('.genre-filter-buttons'); this.ui.sortButton = c.querySelector('.sort-button'); this.ui.catalogGrid = c.querySelector('.book-catalog-grid'); },
+        renderAllSections: function() { this.renderSearchBar(); BaseModule.render(this.ui.promoCards, appData.library.promoCards, this.createPromoCard, 'promoção'); BaseModule.render(this.ui.popularBooks, appData.library.popularBooks, (b) => this.createBookCoverCard(b, 'book-cover-card'), 'livro'); BaseModule.render(this.ui.genreButtons, appData.library.genres, this.createGenreButton.bind(this)); this.renderBookCatalog(); this.updateSortButtonUI(); },
+        setupEventListeners: function() { this.ui.sortButton.addEventListener('click', this.handleSort.bind(this)); this.ui.searchInput.addEventListener('input', (e) => this.handleSearch(e)); this.ui.genreButtons.addEventListener('click', this.handleGenreFilterClick.bind(this)); this.ui.popularBooks.parentElement.addEventListener('click', handleCarouselClick); },
+        renderSearchBar: function() { const searchBar = document.createElement('div'); searchBar.className = 'search-bar'; searchBar.innerHTML = `<svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg><input type="search" placeholder="Pesquisar livros e autores...">`; this.ui.searchInput.innerHTML = ''; this.ui.searchInput.appendChild(searchBar); },
+        createPromoCard: function(cardInfo) { const cardEl = document.createElement('div'); cardEl.className = 'promo-card'; cardEl.innerHTML = `<img src="${cardInfo.imageUrl}" alt="${cardInfo.altText}" loading="lazy">`; return cardEl; },
+        createBookCoverCard: function(book, className) { const card = document.createElement('div'); card.className = className; card.innerHTML = `<img src="${book.coverImageUrl}" alt="Capa de ${book.title}" loading="lazy">`; return card; },
+        createGenreButton: function(genre) { const button = document.createElement('button'); button.className = 'genre-button'; button.dataset.genre = genre; button.textContent = genre; if (genre === this.currentGenreFilter) { button.classList.add('active'); } return button; },
+        renderBookCatalog: function() { const searchTerm = this.ui.searchInput.querySelector('input').value.trim().toLowerCase(); let books = [...appData.library.catalogBooks]; if (this.currentGenreFilter !== 'Todos') { books = books.filter(b => Array.isArray(b.genre) ? b.genre.includes(this.currentGenreFilter) : b.genre === this.currentGenreFilter); } if (searchTerm) { books = books.filter(b => (b.title && b.title.toLowerCase().includes(searchTerm)) || (b.author && b.author.toLowerCase().includes(searchTerm))); } books.sort((a, b) => { const field = this.currentSort.field; const order = this.currentSort.order === 'asc' ? 1 : -1; const valA = a[field]; const valB = b[field]; if (valA < valB) return -1 * order; if (valA > valB) return 1 * order; return 0; }); BaseModule.render(this.ui.catalogGrid, books, (b) => this.createBookCoverCard(b, 'book-catalog-item'), 'livro'); },
+        handleGenreFilterClick: function(event) { const button = event.target.closest('.genre-button'); if (!button) return; this.ui.genreButtons.querySelector('.active')?.classList.remove('active'); button.classList.add('active'); this.currentGenreFilter = button.dataset.genre; this.renderBookCatalog(); },
+        handleSort: function() { const fields = ['title', 'price', 'publishDate']; const currentIdx = fields.indexOf(this.currentSort.field); const nextIdx = (currentIdx + 1) % fields.length; this.currentSort.field = fields[nextIdx]; this.currentSort.order = 'asc'; this.updateSortButtonUI(); this.renderBookCatalog(); },
+        updateSortButtonUI: function() { const fieldNames = { title: 'Título', price: 'Preço', publishDate: 'Lançamento'}; this.ui.sortButton.innerHTML = `<svg viewBox="0 0 24 24"><path d="M3 18h6v-2H3v2zM3 6v2h18V6H3zm0 7h12v-2H3v2z"/></svg> Ordenar por ${fieldNames[this.currentSort.field]}`; },
+        handleSearch: function() { this.renderBookCatalog(); }
+    };
+    
+    /**
+     * @namespace profileModule
+     * @description Módulo para a página de perfil com animação de bouncer.
+     */
+    const profileModule = {
+        animationFrameId: null,
+        
+        init: function() {
+            if (this.animationFrameId) {
+                cancelAnimationFrame(this.animationFrameId);
+            }
+            
+            const container = document.getElementById('profile-page');
+            container.innerHTML = `
+                <div class="profile-placeholder">
+                    <h2 class="section-title" style="text-align: center;">Meu Perfil</h2>
+                    <div class="profile-bouncer-container">
+                        <div class="bouncer-emoji"></div>
+                    </div>
+                    <p class="message">Em construção. Volte mais tarde!</p>
+                </div>`;
+
+            const bouncer = container.querySelector('.bouncer-emoji');
+            const bouncerContainer = container.querySelector('.profile-bouncer-container');
+            
+            if (!bouncer || !bouncerContainer) return;
+
+            const emojis = ['🫖', '🌱', '🐰', '🐇', '🥕', '☕'];
+            let currentEmojiIndex = 0;
+
+            const speed = 1.5;
+            let x = Math.random() * (bouncerContainer.clientWidth - bouncer.offsetWidth);
+            let y = Math.random() * (bouncerContainer.clientHeight - bouncer.offsetHeight);
+            let dx = (Math.random() < 0.5 ? 1 : -1) * speed;
+            let dy = (Math.random() < 0.5 ? 1 : -1) * speed;
+
+            const changeEmoji = () => {
+                currentEmojiIndex = (currentEmojiIndex + 1) % emojis.length;
+                bouncer.textContent = emojis[currentEmojiIndex];
+            };
+            
+            bouncer.textContent = emojis[currentEmojiIndex];
+
+            const animate = () => {
+                const containerWidth = bouncerContainer.clientWidth;
+                const containerHeight = bouncerContainer.clientHeight;
+                const bouncerWidth = bouncer.offsetWidth;
+                const bouncerHeight = bouncer.offsetHeight;
+
+                x += dx;
+                y += dy;
+
+                let collided = false;
+                if (x <= 0) { x = 0; dx *= -1; collided = true; }
+                if (x + bouncerWidth >= containerWidth) { x = containerWidth - bouncerWidth; dx *= -1; collided = true; }
+                if (y <= 0) { y = 0; dy *= -1; collided = true; }
+                if (y + bouncerHeight >= containerHeight) { y = containerHeight - bouncerHeight; dy *= -1; collided = true; }
+                
+                if (collided) {
+                    changeEmoji();
+                }
+
+                bouncer.style.transform = `translate(${x}px, ${y}px)`;
+                this.animationFrameId = requestAnimationFrame(animate);
+            };
+
+            this.animationFrameId = requestAnimationFrame(animate);
+        }
+    };
+
+    // ==========================================================================
+    //  APP INITIALIZATION
+    // ==========================================================================
+    document.addEventListener('DOMContentLoaded', () => {
+        App.init();
+    });
+
+    </script>
+</body>
+</html>
