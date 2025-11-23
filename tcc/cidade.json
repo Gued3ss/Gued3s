@@ -1,19 +1,6 @@
 {
-  "nome": "São Paulo",
-  "populacao": 12300000,
-  "regiao": "Sudeste",
-  "area_km2": 1521,
-  "densidade_populacional": 8097,
-  "ano_fundacao": 1554,
-  "pontos_turisticos": [
-    "Avenida Paulista",
-    "Parque Ibirapuera",
-    "Mercado Municipal",
-    "Catedral da Sé"
-  ],
-  "caracteristicas": {
-    "economia": "Maior centro financeiro da América Latina",
-    "clima": "Tropical de altitude",
-    "apelido": "Terra da Garoa"
-  }
+  "nome": "Curitiba",
+  "populacao": 1963726,
+  "regiao": "Sul",
+  "fundacao": "29/03/1693"
 }
