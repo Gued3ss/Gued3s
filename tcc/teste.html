@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Leitor de JSON</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #f0f0f0;
+        margin: 40px;
+    }
+
+    h1 {
+        text-align: center;
+    }
+
+    .container {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        margin-top: 30px;
+    }
+
+    .box {
+        background: white;
+        padding: 20px;
+        width: 30%;
+        border-radius: 10px;
+        box-shadow: 0 0 10px #00000020;
+    }
+
+    .titulo {
+        font-weight: bold;
+        margin-bottom: 10px;
+        text-align: center;
+        font-size: 18px;
+    }
+
+    pre {
+        background: #eee;
+        padding: 10px;
+        border-radius: 8px;
+        overflow-x: auto;
+    }
+</style>
+</head>
+<body>
+
+<h1>Leitor de Arquivos JSON</h1>
+
+<div class="container">
+    <div class="box">
+        <div class="titulo">Cidade</div>
+        <pre id="cidade">Carregando...</pre>
+    </div>
+
+    <div class="box">
+        <div class="titulo">Estado</div>
+        <pre id="estado">Carregando...</pre>
+    </div>
+
+    <div class="box">
+        <div class="titulo">País</div>
+        <pre id="pais">Carregando...</pre>
+    </div>
+</div>
+
+<script>
+async function carregar(id, arquivo) {
+    try {
+        const res = await fetch(arquivo);
+        if (!res.ok) throw new Error("Erro HTTP " + res.status);
+        const dados = await res.json();
+        document.getElementById(id).textContent = JSON.stringify(dados, null, 2);
+    } catch (e) {
+        document.getElementById(id).textContent = "Erro ao carregar: " + e;
+    }
+}
+
+// Carregar os três JSON
+carregar("cidade", "cidade.json");
+carregar("estado", "estado.json");
+carregar("pais", "pais.json");
+</script>
+
+</body>
+</html>
