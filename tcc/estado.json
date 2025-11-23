@@ -1,5 +1,6 @@
 {
-  "nome": "São Paulo",
-  "capital": "São Paulo",
-  "habitantes": 44000000
+  "nome": "Paraná",
+  "capital": "Curitiba",
+  "habitantes": 11516840,
+  "principais_cidades": ["Curitiba", "Londrina", "Maringá"]
 }
