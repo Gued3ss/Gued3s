@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Munsell 3D - Fiel ao Livro</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #canvas-container { width: 100vw; height: 100vh; display: block; }
+        #ui-panel {
+            position: absolute; top: 15px; left: 15px; background: rgba(15, 15, 20, 0.85);
+            padding: 15px 20px; border-radius: 12px; border: 1px solid #333;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.8); width: 340px; backdrop-filter: blur(8px);
+            max-height: 95vh; overflow-y: auto;
+        }
+        h2 { margin: 0 0 10px 0; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
+        .subtitle { font-size: 10px; color: #aaa; margin-bottom: 15px; display: block; }
+        .control-group { margin-bottom: 12px; }
+        label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; color: #ccc; align-items: center; }
+        span.val { font-weight: bold; color: #4da6ff; }
+        input[type=range] { width: 100%; cursor: pointer; accent-color: #4da6ff; }
+        select { width: 100%; padding: 6px; background: #222; color: #fff; border: 1px solid #444; border-radius: 6px; cursor: pointer; outline: none; font-size: 12px; }
+        input[type=checkbox] { width: 16px; height: 16px; accent-color: #4da6ff; cursor: pointer; }
+        hr { border: 0; border-top: 1px solid #333; margin: 15px 0; }
+        button {
+            width: 100%; padding: 10px; background: #4da6ff; color: #000; border: none;
+            border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; margin-top: 5px;
+        }
+        button:hover { background: #3388dd; }
+        .info { font-size: 10px; color: #888; margin-top: 10px; line-height: 1.4; }
+        
+        #ui-panel::-webkit-scrollbar { width: 6px; }
+        #ui-panel::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+        
+        .size-box { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; border: 1px solid #333; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-panel">
+        <h2>Munsell 3D Viewer</h2>
+        <span class="subtitle">Reference: "The Munsell Book of Color"</span>
+        
+        <div class="control-group">
+            <label>Formato Visual</label>
+            <select id="shape-select">
+                <option value="solid">Blocos Sólidos (Estilo Imagem)</option>
+                <option value="cube">Cubos Separados</option>
+                <option value="sphere">Bolas (Esferas)</option>
+                <option value="plane">Quadrados 2D (De lado p/ o centro)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>Densidade (Qtd. de Matizes) <span id="lbl-density" class="val">40</span></label>
+            <input type="range" id="density" min="10" max="100" value="40" step="2">
+        </div>
+
+        <hr>
+
+        <!-- CONTROLES DE TAMANHO -->
+        <div class="control-group" style="display: flex; align-items: center; justify-content: space-between; background: #222; padding: 8px; border-radius: 6px; margin-bottom: 10px;">
+            <label style="margin:0; cursor:pointer;" for="radial-scale">Tamanho Proporcional (Menor no centro)</label>
+            <input type="checkbox" id="radial-scale">
+        </div>
+
+        <div class="size-box">
+            <!-- Visível quando checkbox está DESMARCADO -->
+            <div id="size-controls-normal">
+                <label>Tamanho Geral <span id="lbl-size-base" class="val">1.0x</span></label>
+                <input type="range" id="size-base" min="0.1" max="3.0" value="1.0" step="0.1">
+            </div>
+
+            <!-- Visível quando checkbox está MARCADO -->
+            <div id="size-controls-radial" style="display:none;">
+                <label>Tamanho Mínimo (Centro) <span id="lbl-size-min" class="val">0.3x</span></label>
+                <input type="range" id="size-min" min="0.1" max="1.5" value="0.3" step="0.1" style="margin-bottom: 10px;">
+                
+                <label>Tamanho Máximo (Bordas) <span id="lbl-size-max" class="val">1.5x</span></label>
+                <input type="range" id="size-max" min="0.5" max="4.0" value="1.5" step="0.1">
+            </div>
+        </div>
+
+        <hr>
+
+        <div class="control-group">
+            <label>Espaçamento Horizontal <span id="lbl-space-h" class="val">1.0x</span></label>
+            <input type="range" id="spacing-h" min="0.5" max="3.0" value="1.0" step="0.1">
+        </div>
+
+        <div class="control-group">
+            <label>Espaçamento Vertical <span id="lbl-space-v" class="val">1.0x</span></label>
+            <input type="range" id="spacing-v" min="0.5" max="3.0" value="1.0" step="0.1">
+        </div>
+
+        <hr>
+
+        <div class="control-group">
+            <label>Fatia Horizontal (Luminosidade) <span id="lbl-v" class="val">Todos</span></label>
+            <input type="range" id="slice-v" min="0" max="9" value="0" step="1">
+        </div>
+
+        <div class="control-group">
+            <label>Fatia Vertical (Lados Opostos) <span id="lbl-h" class="val">Todos</span></label>
+            <input type="range" id="slice-h" min="-1" max="19" value="-1" step="1">
+        </div>
+
+        <div class="control-group">
+            <label>Fatia Cilíndrica (Saturação) <span id="lbl-c" class="val">Todos</span></label>
+            <input type="range" id="slice-c" min="0" max="16" value="0" step="2">
+        </div>
+
+        <button id="btn-reset">Restaurar Padrões</button>
+
+        <div class="info">
+            * <b>Fidelidade:</b> O modelo reflete a assimetria real do livro. O Amarelo atinge saturação máxima no Valor 8, e o Azul-Púrpura no Valor 3/4.<br>
+            * <b>Densidade 10:</b> Mostra apenas os 10 matizes principais (R, YR, Y, GY, G, BG, B, PB, P, RP).<br>
+            * <b>Densidade 40:</b> Padrão do livro (passos de 2.5).
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // 1. Configuração da Cena
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+        camera.position.set(20, 15, 28);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        dirLight.position.set(10, 20, 15);
+        scene.add(dirLight);
+        const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
+        backLight.position.set(-10, -10, -15);
+        scene.add(backLight);
+
+        // 2. Céu Estrelado
+        function createStarrySky() {
+            const starsGeometry = new THREE.BufferGeometry();
+            const starsCount = 8000;
+            const posArray = new Float32Array(starsCount * 3);
+            const colorsArray = new Float32Array(starsCount * 3);
+
+            for(let i = 0; i < starsCount * 3; i+=3) {
+                let r = 300 + Math.random() * 400;
+                let theta = 2 * Math.PI * Math.random();
+                let phi = Math.acos(2 * Math.random() - 1);
+                
+                posArray[i] = r * Math.sin(phi) * Math.cos(theta);
+                posArray[i+1] = r * Math.sin(phi) * Math.sin(theta);
+                posArray[i+2] = r * Math.cos(phi);
+
+                let starType = Math.random();
+                let color = new THREE.Color();
+                if (starType > 0.9) color.setHSL(0.6, 0.8, 0.8);
+                else if (starType > 0.7) color.setHSL(0.1, 0.8, 0.8);
+                else color.setHSL(0, 0, 1);
+
+                colorsArray[i] = color.r;
+                colorsArray[i+1] = color.g;
+                colorsArray[i+2] = color.b;
+            }
+
+            starsGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            starsGeometry.setAttribute('color', new THREE.BufferAttribute(colorsArray, 3));
+            
+            const starsMaterial = new THREE.PointsMaterial({ size: 1.2, vertexColors: true, transparent: true, opacity: 0.8 });
+            const starMesh = new THREE.Points(starsGeometry, starsMaterial);
+            scene.add(starMesh);
+        }
+        createStarrySky();
+
+        let blocksData =[];
+        let instancedMesh;
+        let totalHues = 40;
+        const dummy = new THREE.Object3D();
+
+        // 3. Geração dos Dados (Fidelidade ao Livro Munsell)
+        function generateMunsellData() {
+            blocksData =[];
+            totalHues = parseInt(document.getElementById('density').value);
+            document.getElementById('slice-h').max = (totalHues / 2) - 1;
+
+            for (let v = 1; v <= 9; v++) { // Valores de 1 a 9 (N1 a N9 no livro)
+                for (let h = 0; h < totalHues; h++) { 
+                    let hueAngle = (h / totalHues) * Math.PI * 2;
+                    let hueDeg = (h / totalHues) * 360;
+
+                    // MATEMÁTICA FIEL AO LIVRO:
+                    // Se assumirmos Vermelho = 0°, Amarelo = 90° (PI/2), Azul-Púrpura = 270° (3*PI/2)
+                    // Math.sin(PI/2) = 1 -> Pico no Valor 8 (Amarelo)
+                    // Math.sin(3*PI/2) = -1 -> Pico no Valor 3 (Azul-Púrpura)
+                    let peakValue = 5.5 + Math.sin(hueAngle) * 2.5; 
+                    
+                    // Croma máximo varia de acordo com a distância do pico
+                    let maxChroma = 14 + Math.cos(hueAngle * 2) * 2 - Math.abs(v - peakValue) * 2.5;
+                    maxChroma = Math.max(2, Math.floor(maxChroma));
+                    // Força número par para bater com os passos do livro (2, 4, 6, 8...)
+                    if (maxChroma % 2 !== 0) maxChroma -= 1; 
+
+                    for (let c = 2; c <= maxChroma; c += 2) { 
+                        let lightness = v * 10;
+                        let saturation = (c / 16) * 100; // Croma max no livro é ~16
+                        saturation = Math.min(100, saturation * (1 + Math.abs(5-v)*0.05));
+
+                        let color = new THREE.Color(`hsl(${hueDeg}, ${saturation}%, ${lightness}%)`);
+                        let radius = c * 0.4;
+                        
+                        blocksData.push({ 
+                            radius: radius,
+                            angle: hueAngle,
+                            yBase: (v - 5) * 1.1, 
+                            color: color, 
+                            v: v, h: h, c: c 
+                        });
+                    }
+                }
+            }
+
+            // Eixo Neutro (Centro)
+            for (let v = 1; v <= 9; v++) {
+                let color = new THREE.Color(`hsl(0, 0%, ${v*10}%)`);
+                blocksData.push({ radius: 0, angle: 0, yBase: (v - 5) * 1.1, color: color, v: v, h: -1, c: 0 });
+            }
+        }
+
+        // 4. Criação da Malha
+        function createMesh() {
+            if (instancedMesh) {
+                scene.remove(instancedMesh);
+                instancedMesh.geometry.dispose();
+                instancedMesh.material.dispose();
+            }
+
+            const shapeType = document.getElementById('shape-select').value;
+            let geometry;
+            
+            if (shapeType === 'solid') {
+                geometry = new THREE.BoxGeometry(1, 1, 1);
+            } else if (shapeType === 'cube') {
+                geometry = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+            } else if (shapeType === 'sphere') {
+                geometry = new THREE.SphereGeometry(0.25, 16, 16);
+            } else if (shapeType === 'plane') {
+                geometry = new THREE.PlaneGeometry(0.5, 0.5);
+            }
+
+            const material = new THREE.MeshStandardMaterial({ 
+                roughness: 0.15, metalness: 0.05, side: THREE.DoubleSide 
+            });
+
+            instancedMesh = new THREE.InstancedMesh(geometry, material, blocksData.length);
+            scene.add(instancedMesh);
+            updateInstances();
+        }
+
+        // 5. Atualização de Posições e Tamanhos
+        function updateInstances() {
+            const shapeType = document.getElementById('shape-select').value;
+            const filterV = parseInt(document.getElementById('slice-v').value);
+            const filterH = parseInt(document.getElementById('slice-h').value);
+            const filterC = parseInt(document.getElementById('slice-c').value);
+            
+            const spaceH = parseFloat(document.getElementById('spacing-h').value);
+            const spaceV = parseFloat(document.getElementById('spacing-v').value);
+            
+            const useRadialScale = document.getElementById('radial-scale').checked;
+            const baseSize = parseFloat(document.getElementById('size-base').value);
+            const minSize = parseFloat(document.getElementById('size-min').value);
+            const maxSize = parseFloat(document.getElementById('size-max').value);
+
+            const angleStep = (Math.PI * 2) / totalHues;
+            const maxRadiusPossible = 16 * 0.4; // Croma 16 * multiplicador
+
+            blocksData.forEach((block, i) => {
+                let visible = true;
+                
+                if (filterV !== 0 && block.v !== filterV) visible = false;
+                if (filterH !== -1 && block.h !== -1) {
+                    let oppositeH = (filterH + (totalHues / 2)) % totalHues;
+                    if (block.h !== filterH && block.h !== oppositeH) visible = false;
+                }
+                if (filterC !== 0 && block.c !== filterC) visible = false;
+
+                if (visible) {
+                    let currentRadius = block.radius * spaceH;
+                    let px = Math.cos(block.angle) * currentRadius;
+                    let pz = Math.sin(block.angle) * currentRadius;
+                    let py = block.yBase * spaceV;
+
+                    dummy.position.set(px, py, pz);
+                    dummy.lookAt(0, py, 0);
+                    
+                    if (shapeType === 'plane') {
+                        dummy.rotateY(Math.PI / 2); // Rotaciona 90 graus
+                    }
+
+                    // LÓGICA DE TAMANHO
+                    let sx = 1, sy = 1, sz = 1;
+                    let scaleFactor = baseSize;
+
+                    if (useRadialScale) {
+                        // Normaliza o raio de 0 a 1 para interpolar entre minSize e maxSize
+                        let normalizedR = block.h === -1 ? 0 : (block.radius / maxRadiusPossible);
+                        scaleFactor = minSize + (maxSize - minSize) * normalizedR;
+                    }
+
+                    if (shapeType === 'solid') {
+                        if (block.h === -1) {
+                            sx = sz = 0.8 * spaceH * scaleFactor;
+                            sy = 1.1 * spaceV * scaleFactor;
+                        } else {
+                            sx = (currentRadius * angleStep) * 1.02 * scaleFactor;
+                            sy = 1.1 * spaceV * 1.02 * scaleFactor;
+                            sz = 0.8 * spaceH * 1.02 * scaleFactor;
+                        }
+                    } else {
+                        sx = sy = sz = scaleFactor;
+                        // Ajuste base para os planos ficarem visíveis
+                        if(shapeType === 'plane') { sx *= 1.5; sy *= 1.5; }
+                    }
+
+                    dummy.scale.set(sx, sy, sz);
+                } else {
+                    dummy.scale.set(0, 0, 0);
+                }
+                
+                dummy.updateMatrix();
+                instancedMesh.setMatrixAt(i, dummy.matrix);
+                instancedMesh.setColorAt(i, block.color);
+            });
+            
+            instancedMesh.instanceMatrix.needsUpdate = true;
+            if(instancedMesh.instanceColor) instancedMesh.instanceColor.needsUpdate = true;
+        }
+
+        // Inicialização
+        generateMunsellData();
+        createMesh();
+
+        // 6. Eventos de UI
+        document.getElementById('shape-select').addEventListener('change', createMesh);
+        
+        document.getElementById('density').addEventListener('change', (e) => {
+            document.getElementById('lbl-density').innerText = e.target.value;
+            document.getElementById('slice-h').value = -1;
+            document.getElementById('lbl-h').innerText = "Todos";
+            generateMunsellData();
+            createMesh();
+        });
+
+        // Alternar UI de Tamanho
+        document.getElementById('radial-scale').addEventListener('change', (e) => {
+            if(e.target.checked) {
+                document.getElementById('size-controls-normal').style.display = 'none';
+                document.getElementById('size-controls-radial').style.display = 'block';
+            } else {
+                document.getElementById('size-controls-normal').style.display = 'block';
+                document.getElementById('size-controls-radial').style.display = 'none';
+            }
+            updateInstances();
+        });
+
+        // Sliders de Tamanho
+        ['size-base', 'size-min', 'size-max'].forEach(id => {
+            document.getElementById(id).addEventListener('input', (e) => {
+                document.getElementById(`lbl-${id}`).innerText = parseFloat(e.target.value).toFixed(1) + 'x';
+                updateInstances();
+            });
+        });
+
+        // Sliders de Espaçamento
+        ['spacing-h', 'spacing-v'].forEach(id => {
+            document.getElementById(id).addEventListener('input', (e) => {
+                document.getElementById(`lbl-${id.replace('ing', 'e')}`).innerText = parseFloat(e.target.value).toFixed(1) + 'x';
+                updateInstances();
+            });
+        });
+
+        // Sliders de Fatiamento
+        const sliders = ['v', 'h', 'c'];
+        sliders.forEach(id => {
+            document.getElementById(`slice-${id}`).addEventListener('input', (e) => {
+                let val = parseInt(e.target.value);
+                let label = val;
+                if (id === 'v' && val === 0) label = "Todos";
+                if (id === 'h' && val === -1) label = "Todos";
+                if (id === 'c' && val === 0) label = "Todos";
+                
+                if (id === 'h' && val !== -1) {
+                    let oposto = (val + (totalHues / 2)) % totalHues;
+                    label = `Fatias ${val} e ${oposto}`;
+                }
+
+                document.getElementById(`lbl-${id}`).innerText = label;
+                updateInstances();
+            });
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            document.getElementById('shape-select').value = 'solid';
+            document.getElementById('density').value = 40;
+            document.getElementById('radial-scale').checked = false;
+            
+            document.getElementById('size-base').value = 1.0;
+            document.getElementById('size-min').value = 0.3;
+            document.getElementById('size-max').value = 1.5;
+            
+            document.getElementById('spacing-h').value = 1.0;
+            document.getElementById('spacing-v').value = 1.0;
+            document.getElementById('slice-v').value = 0;
+            document.getElementById('slice-h').value = -1;
+            document.getElementById('slice-c').value = 0;
+            
+            // Dispara os eventos para atualizar a UI e o 3D
+            document.getElementById('radial-scale').dispatchEvent(new Event('change'));
+            ['size-base', 'size-min', 'size-max', 'spacing-h', 'spacing-v'].forEach(id => {
+                document.getElementById(id).dispatchEvent(new Event('input'));
+            });
+            
+            document.getElementById('lbl-density').innerText = "40";
+            document.getElementById('lbl-v').innerText = "Todos";
+            document.getElementById('lbl-h').innerText = "Todos";
+            document.getElementById('lbl-c').innerText = "Todos";
+            
+            generateMunsellData();
+            createMesh();
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            scene.children.forEach(child => {
+                if (child.isPoints) child.rotation.y += 0.00015;
+            });
+            renderer.render(scene, camera);
+        }
+        animate();
+
+    </script>
+</body>
+</html>
