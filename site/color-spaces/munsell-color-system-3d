@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- SEO META TAGS -->
+    <title>Munsell Color System 3D Viewer | Interactive Color Tree</title>
+    <meta name="description" content="Explore the Munsell Color System in an interactive 3D space. Accurate visualization based on The Munsell Book of Color with adjustable hue, value, and chroma slices.">
+    <meta name="keywords" content="Munsell, color system, 3D color space, color theory, Albert Munsell, Three.js, data visualization, color tree, hue value chroma, interactive color model">
+    <meta name="author" content="Your Name Here">
+
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+        #canvas-container { width: 100vw; height: 100vh; display: block; }
+        
+        /* Main UI Panel */
+        #ui-panel {
+            position: absolute; top: 15px; left: 15px; background: rgba(15, 15, 20, 0.85);
+            border-radius: 12px; border: 1px solid #333; box-shadow: 0 4px 20px rgba(0,0,0,0.8); 
+            width: 320px; backdrop-filter: blur(8px); z-index: 10; display: flex; flex-direction: column;
+        }
+        
+        #ui-header {
+            padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid transparent; transition: 0.3s;
+        }
+        #ui-header h2 { margin: 0; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; color: #fff; }
+        #toggle-ui-btn { background: none; border: none; color: #4da6ff; cursor: pointer; font-size: 18px; padding: 0; }
+        
+        #ui-content {
+            padding: 0 20px 15px 20px; max-height: 80vh; overflow-y: auto; transition: max-height 0.3s ease-out;
+        }
+        #ui-content::-webkit-scrollbar { width: 6px; }
+        #ui-content::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+
+        .subtitle { font-size: 10px; color: #aaa; margin-bottom: 15px; display: block; }
+        .control-group { margin-bottom: 12px; }
+        label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; color: #ccc; align-items: center; }
+        span.val { font-weight: bold; color: #4da6ff; }
+        input[type=range] { width: 100%; cursor: pointer; accent-color: #4da6ff; }
+        select { width: 100%; padding: 6px; background: #222; color: #fff; border: 1px solid #444; border-radius: 6px; cursor: pointer; outline: none; font-size: 12px; }
+        input[type=checkbox] { width: 16px; height: 16px; accent-color: #4da6ff; cursor: pointer; }
+        hr { border: 0; border-top: 1px solid #333; margin: 15px 0; }
+        
+        button.action-btn { width: 100%; padding: 10px; background: #4da6ff; color: #000; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; margin-top: 5px; }
+        button.action-btn:hover { background: #3388dd; }
+        button.btn-outline { background: transparent; border: 1px solid #4da6ff; color: #4da6ff; }
+        button.btn-outline:hover { background: rgba(77, 166, 255, 0.1); }
+        
+        /* Tools Section */
+        .tools-container { display: flex; gap: 10px; margin-bottom: 15px; }
+        .tool-btn { flex: 1; padding: 8px; background: #222; border: 1px solid #444; color: #aaa; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.3s; }
+        .tool-btn:hover { color: #fff; background: #333; }
+        .tool-btn.active { background: #4da6ff; color: #000; border-color: #4da6ff; box-shadow: 0 0 10px rgba(77, 166, 255, 0.4); }
+
+        .size-box { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; border: 1px solid #333; }
+
+        /* Eyedropper Result Panel */
+        #eyedropper-panel {
+            position: absolute; top: 20px; right: 20px; background: rgba(15, 15, 20, 0.9);
+            padding: 15px; border-radius: 12px; border: 1px solid #444; display: none;
+            align-items: center; gap: 15px; z-index: 10; backdrop-filter: blur(8px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.8); pointer-events: none;
+        }
+        .color-swatch { width: 50px; height: 50px; border-radius: 8px; border: 2px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        .color-info h3 { margin: 0 0 5px 0; font-size: 18px; color: #fff; }
+        .color-info p { margin: 0; font-size: 12px; color: #aaa; }
+
+        /* Gradient Tool Panel */
+        #gradient-panel {
+            position: absolute; top: 20px; right: 20px; background: rgba(15, 15, 20, 0.9);
+            padding: 20px; border-radius: 12px; border: 1px solid #444; display: none;
+            flex-direction: column; gap: 15px; z-index: 10; backdrop-filter: blur(8px);
+            width: 250px; box-shadow: 0 4px 20px rgba(0,0,0,0.8); pointer-events: none;
+        }
+        #gradient-panel h3 { margin: 0; font-size: 15px; text-align: center; color: #fff; }
+        .grad-step { display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; border: 1px solid #333; transition: 0.3s; }
+        .grad-step.active { border-color: #4da6ff; box-shadow: 0 0 10px rgba(77, 166, 255, 0.3); }
+        .grad-swatch { width: 30px; height: 30px; border-radius: 5px; border: 1px solid #666; background: #222; }
+        .grad-text { font-size: 12px; color: #ccc; }
+        #gradient-result { width: 100%; height: 40px; border-radius: 8px; border: 1px solid #666; background: #222; margin-top: 5px; }
+        .instruction { font-size: 11px; color: #4da6ff; text-align: center; margin: 0; }
+
+        /* SEO Modal */
+        #about-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(5px); z-index: 100;
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: #111; border: 1px solid #333; border-radius: 12px;
+            width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto;
+            padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.9); position: relative;
+            line-height: 1.6; color: #ddd;
+        }
+        .modal-content h1 { color: #fff; font-size: 24px; margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .modal-content h3 { color: #4da6ff; margin-top: 20px; font-size: 16px; }
+        .modal-content p { font-size: 14px; margin-bottom: 15px; }
+        .close-btn { position: absolute; top: 20px; right: 20px; background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; }
+        .close-btn:hover { color: #ff4d4d; }
+    </style>
+</head>
+<body>
+
+    <!-- SEO ARTICLE MODAL -->
+    <div id="about-modal">
+        <div class="modal-content">
+            <button class="close-btn" id="close-modal">&times;</button>
+            <h1>Understanding the Munsell Color System</h1>
+            <p>Created by Professor Albert H. Munsell in the early 20th century (1905), the <strong>Munsell Color System</strong> was a revolutionary breakthrough in color theory. Unlike previous models that relied on mathematical mixtures of light or paint, Munsell based his system entirely on <strong>human visual perception</strong>.</p>
+            <p>He established a three-dimensional color space where colors are organized by three independent attributes:</p>
+            <h3>1. Hue (The Color Itself)</h3>
+            <p>Hue is what we typically think of as "color" (Red, Yellow, Green, Blue, Purple). In this 3D model, Hue is represented by the angle around the central vertical axis. Munsell defined 5 principal hues and 5 intermediate hues, creating a continuous 360-degree circle.</p>
+            <h3>2. Value (Lightness / Darkness)</h3>
+            <p>Value represents how light or dark a color is. It runs vertically through the center of the model. At the bottom is pure black (Value 0), and at the top is pure white (Value 10). The central pillar itself is a neutral gray scale.</p>
+            <h3>3. Chroma (Saturation / Purity)</h3>
+            <p>Chroma measures the purity or intensity of a color. It is represented by the horizontal distance from the central neutral axis. Colors near the center are grayish and muted, while colors extending far outward are highly saturated and vivid.</p>
+            <h3>The Asymmetrical "Color Tree"</h3>
+            <p>One of the most unique and scientifically accurate features of the Munsell Color Solid is its irregular, asymmetrical shape. Because human eyes perceive different colors differently, not all colors reach their maximum saturation (Chroma) at the same lightness (Value).</p>
+            <p>For example, pure Yellow is naturally a light color, so it reaches its maximum chroma near the top of the model (Value 8). Conversely, pure Purple-Blue is naturally dark, reaching its peak saturation near the bottom (Value 3 or 4). This interactive 3D viewer accurately replicates this mathematical asymmetry as documented in <em>The Munsell Book of Color</em>.</p>
+            <h3>About this 3D Tool</h3>
+            <p>This interactive data visualization was built using JavaScript and Three.js. It allows designers, artists, and color scientists to dynamically slice through the Munsell color space, isolate specific hues, and explore the relationships between colors in a true three-dimensional environment.</p>
+        </div>
+    </div>
+
+    <!-- MAIN UI PANEL -->
+    <div id="ui-panel">
+        <div id="ui-header">
+            <h2>Munsell 3D</h2>
+            <button id="toggle-ui-btn">▼</button>
+        </div>
+        
+        <div id="ui-content">
+            <span class="subtitle">Reference: "The Munsell Book of Color"</span>
+            
+            <button id="open-modal" class="action-btn btn-outline" style="margin-bottom: 15px;">📖 Read About This Model</button>
+            
+            <!-- Tools -->
+            <div class="tools-container">
+                <button class="tool-btn" data-tool="eyedropper">💧 Eyedropper</button>
+                <button class="tool-btn" data-tool="gradient">✨ Gradient</button>
+            </div>
+
+            <div class="control-group">
+                <label>Visual Shape</label>
+                <select id="shape-select">
+                    <option value="solid">Solid Blocks (Image Style)</option>
+                    <option value="cube">Separated Cubes</option>
+                    <option value="sphere">Spheres</option>
+                    <option value="plane">2D Squares (Facing Center)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Density (Hue Count) <span id="lbl-density" class="val">40</span></label>
+                <input type="range" id="density" min="10" max="100" value="40" step="2">
+            </div>
+
+            <hr>
+
+            <div class="control-group" style="display: flex; align-items: center; justify-content: space-between; background: #222; padding: 8px; border-radius: 6px; margin-bottom: 10px;">
+                <label style="margin:0; cursor:pointer;" for="radial-scale">Proportional Size</label>
+                <input type="checkbox" id="radial-scale">
+            </div>
+
+            <div class="size-box">
+                <div id="size-controls-normal">
+                    <label>Overall Size <span id="lbl-size-base" class="val">1.0x</span></label>
+                    <input type="range" id="size-base" min="0.1" max="3.0" value="1.0" step="0.1">
+                </div>
+                <div id="size-controls-radial" style="display:none;">
+                    <label>Min Size (Center) <span id="lbl-size-min" class="val">0.3x</span></label>
+                    <input type="range" id="size-min" min="0.1" max="1.5" value="0.3" step="0.1" style="margin-bottom: 10px;">
+                    <label>Max Size (Edges) <span id="lbl-size-max" class="val">1.5x</span></label>
+                    <input type="range" id="size-max" min="0.5" max="4.0" value="1.5" step="0.1">
+                </div>
+            </div>
+
+            <hr>
+
+            <div class="control-group">
+                <label>Horizontal Spacing <span id="lbl-space-h" class="val">1.0x</span></label>
+                <input type="range" id="spacing-h" min="0.5" max="3.0" value="1.0" step="0.1">
+            </div>
+            <div class="control-group">
+                <label>Vertical Spacing <span id="lbl-space-v" class="val">1.0x</span></label>
+                <input type="range" id="spacing-v" min="0.5" max="3.0" value="1.0" step="0.1">
+            </div>
+
+            <hr>
+
+            <div class="control-group">
+                <label>Horizontal Slice (Value) <span id="lbl-v" class="val">All</span></label>
+                <input type="range" id="slice-v" min="0" max="9" value="0" step="1">
+            </div>
+            <div class="control-group">
+                <label>Vertical Slice (Hues) <span id="lbl-h" class="val">All</span></label>
+                <input type="range" id="slice-h" min="-1" max="19" value="-1" step="1">
+            </div>
+            <div class="control-group">
+                <label>Cylindrical Slice (Chroma) <span id="lbl-c" class="val">All</span></label>
+                <input type="range" id="slice-c" min="0" max="16" value="0" step="2">
+            </div>
+
+            <button id="btn-reset" class="action-btn">Reset to Defaults</button>
+        </div>
+    </div>
+
+    <!-- Eyedropper Panel -->
+    <div id="eyedropper-panel">
+        <div class="color-swatch" id="eye-swatch"></div>
+        <div class="color-info">
+            <h3 id="eye-munsell">Munsell Notation</h3>
+            <p id="eye-rgb">HEX: --</p>
+        </div>
+    </div>
+
+    <!-- Gradient Panel -->
+    <div id="gradient-panel">
+        <h3>Gradient Vector</h3>
+        <p class="instruction" id="grad-instruction">Click a color to set Point A</p>
+        <div class="grad-step active" id="grad-step-1">
+            <div class="grad-swatch" id="grad-swatch-1"></div>
+            <div class="grad-text" id="grad-text-1">Point A: Waiting...</div>
+        </div>
+        <div class="grad-step" id="grad-step-2">
+            <div class="grad-swatch" id="grad-swatch-2"></div>
+            <div class="grad-text" id="grad-text-2">Point B: Waiting...</div>
+        </div>
+        <div id="gradient-result"></div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- UI LOGIC ---
+        document.getElementById('open-modal').addEventListener('click', () => document.getElementById('about-modal').style.display = 'flex');
+        document.getElementById('close-modal').addEventListener('click', () => document.getElementById('about-modal').style.display = 'none');
+        
+        const uiContent = document.getElementById('ui-content');
+        const toggleBtn = document.getElementById('toggle-ui-btn');
+        let uiOpen = true;
+        toggleBtn.addEventListener('click', () => {
+            uiOpen = !uiOpen;
+            if(uiOpen) {
+                uiContent.style.maxHeight = '80vh';
+                uiContent.style.paddingBottom = '15px';
+                toggleBtn.innerText = '▼';
+                document.getElementById('ui-header').style.borderBottom = '1px solid transparent';
+            } else {
+                uiContent.style.maxHeight = '0px';
+                uiContent.style.paddingBottom = '0px';
+                toggleBtn.innerText = '▲';
+                document.getElementById('ui-header').style.borderBottom = 'none';
+            }
+        });
+
+        // --- SCENE SETUP ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+        camera.position.set(20, 15, 28);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        // Orbit is ALWAYS enabled now.
+        controls.enabled = true; 
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        dirLight.position.set(10, 20, 15);
+        scene.add(dirLight);
+
+        // --- STARRY SKY ---
+        function createStarrySky() {
+            const starsGeometry = new THREE.BufferGeometry();
+            const posArray = new Float32Array(8000 * 3);
+            const colorsArray = new Float32Array(8000 * 3);
+            for(let i = 0; i < 8000 * 3; i+=3) {
+                let r = 300 + Math.random() * 400;
+                let theta = 2 * Math.PI * Math.random();
+                let phi = Math.acos(2 * Math.random() - 1);
+                posArray[i] = r * Math.sin(phi) * Math.cos(theta);
+                posArray[i+1] = r * Math.sin(phi) * Math.sin(theta);
+                posArray[i+2] = r * Math.cos(phi);
+                let starType = Math.random();
+                let color = new THREE.Color();
+                if (starType > 0.9) color.setHSL(0.6, 0.8, 0.8);
+                else if (starType > 0.7) color.setHSL(0.1, 0.8, 0.8);
+                else color.setHSL(0, 0, 1);
+                colorsArray[i] = color.r; colorsArray[i+1] = color.g; colorsArray[i+2] = color.b;
+            }
+            starsGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            starsGeometry.setAttribute('color', new THREE.BufferAttribute(colorsArray, 3));
+            scene.add(new THREE.Points(starsGeometry, new THREE.PointsMaterial({ size: 1.2, vertexColors: true, transparent: true, opacity: 0.8 })));
+        }
+        createStarrySky();
+
+        // --- HALO EFFECT (Performant Sprite) ---
+        const haloCanvas = document.createElement('canvas');
+        haloCanvas.width = 64; haloCanvas.height = 64;
+        const ctx = haloCanvas.getContext('2d');
+        const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+        gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 64, 64);
+        const haloTexture = new THREE.CanvasTexture(haloCanvas);
+        const haloMaterial = new THREE.SpriteMaterial({ map: haloTexture, color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+        
+        let activeHalos = [];
+        function createHalo(position, color) {
+            const halo = new THREE.Sprite(haloMaterial.clone());
+            halo.material.color.copy(color);
+            halo.position.copy(position);
+            halo.scale.set(0.1, 0.1, 0.1); // Starts small
+            scene.add(halo);
+            activeHalos.push({ mesh: halo, life: 1.0 });
+        }
+
+        // --- MUNSELL DATA ---
+        let blocksData =[];
+        let instancedMesh;
+        let totalHues = 40;
+        const dummy = new THREE.Object3D();
+        const munsellSectors = ['R', 'YR', 'Y', 'GY', 'G', 'BG', 'B', 'PB', 'P', 'RP'];
+
+        function getMunsellNotation(hueDeg, v, c) {
+            if (c === 0) return `N ${v}/`;
+            let munsellValue = (hueDeg / 360) * 100 + 2.5;
+            let sectorIndex = Math.floor((munsellValue - 0.01) / 10) % 10;
+            let prefix = (munsellValue - (sectorIndex * 10)).toFixed(1);
+            if(prefix.endsWith('.0')) prefix = prefix.slice(0, -2);
+            return `${prefix}${munsellSectors[sectorIndex]} ${v}/${c}`;
+        }
+
+        function generateMunsellData() {
+            blocksData =[];
+            totalHues = parseInt(document.getElementById('density').value);
+            document.getElementById('slice-h').max = (totalHues / 2) - 1;
+
+            for (let v = 1; v <= 9; v++) { 
+                for (let h = 0; h < totalHues; h++) { 
+                    let hueAngle = (h / totalHues) * Math.PI * 2;
+                    let hueDeg = (h / totalHues) * 360;
+                    let peakValue = 5.5 + Math.sin(hueAngle) * 2.5; 
+                    let maxChroma = 14 + Math.cos(hueAngle * 2) * 2 - Math.abs(v - peakValue) * 2.5;
+                    maxChroma = Math.max(2, Math.floor(maxChroma));
+                    if (maxChroma % 2 !== 0) maxChroma -= 1; 
+
+                    for (let c = 2; c <= maxChroma; c += 2) { 
+                        let lightness = v * 10;
+                        let saturation = (c / 16) * 100; 
+                        saturation = Math.min(100, saturation * (1 + Math.abs(5-v)*0.05));
+                        let color = new THREE.Color(`hsl(${hueDeg}, ${saturation}%, ${lightness}%)`);
+                        blocksData.push({ radius: c * 0.4, angle: hueAngle, yBase: (v - 5) * 1.1, color: color, v: v, h: h, c: c, hueDeg: hueDeg });
+                    }
+                }
+            }
+            for (let v = 1; v <= 9; v++) {
+                let color = new THREE.Color(`hsl(0, 0%, ${v*10}%)`);
+                blocksData.push({ radius: 0, angle: 0, yBase: (v - 5) * 1.1, color: color, v: v, h: -1, c: 0, hueDeg: 0 });
+            }
+        }
+
+        function createMesh() {
+            if (instancedMesh) { scene.remove(instancedMesh); instancedMesh.geometry.dispose(); instancedMesh.material.dispose(); }
+            const shapeType = document.getElementById('shape-select').value;
+            let geometry;
+            if (shapeType === 'solid') geometry = new THREE.BoxGeometry(1, 1, 1);
+            else if (shapeType === 'cube') geometry = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+            else if (shapeType === 'sphere') geometry = new THREE.SphereGeometry(0.25, 16, 16);
+            else if (shapeType === 'plane') geometry = new THREE.PlaneGeometry(0.5, 0.5);
+
+            const material = new THREE.MeshStandardMaterial({ roughness: 0.15, metalness: 0.05, side: THREE.DoubleSide });
+            instancedMesh = new THREE.InstancedMesh(geometry, material, blocksData.length);
+            scene.add(instancedMesh);
+            updateInstances();
+        }
+
+        function updateInstances() {
+            clearInteractiveTools(); 
+            
+            const shapeType = document.getElementById('shape-select').value;
+            const filterV = parseInt(document.getElementById('slice-v').value);
+            const filterH = parseInt(document.getElementById('slice-h').value);
+            const filterC = parseInt(document.getElementById('slice-c').value);
+            const spaceH = parseFloat(document.getElementById('spacing-h').value);
+            const spaceV = parseFloat(document.getElementById('spacing-v').value);
+            const useRadialScale = document.getElementById('radial-scale').checked;
+            const baseSize = parseFloat(document.getElementById('size-base').value);
+            const minSize = parseFloat(document.getElementById('size-min').value);
+            const maxSize = parseFloat(document.getElementById('size-max').value);
+            const angleStep = (Math.PI * 2) / totalHues;
+
+            blocksData.forEach((block, i) => {
+                let visible = true;
+                if (filterV !== 0 && block.v !== filterV) visible = false;
+                if (filterH !== -1 && block.h !== -1) {
+                    let oppositeH = (filterH + (totalHues / 2)) % totalHues;
+                    if (block.h !== filterH && block.h !== oppositeH) visible = false;
+                }
+                if (filterC !== 0 && block.c !== filterC) visible = false;
+
+                if (visible) {
+                    let currentRadius = block.radius * spaceH;
+                    let px = Math.cos(block.angle) * currentRadius;
+                    let pz = Math.sin(block.angle) * currentRadius;
+                    let py = block.yBase * spaceV;
+
+                    dummy.position.set(px, py, pz);
+                    dummy.lookAt(0, py, 0);
+                    if (shapeType === 'plane') dummy.rotateY(Math.PI / 2); 
+
+                    let sx = 1, sy = 1, sz = 1;
+                    let scaleFactor = baseSize;
+                    if (useRadialScale) {
+                        let normalizedR = block.h === -1 ? 0 : (block.radius / (16 * 0.4));
+                        scaleFactor = minSize + (maxSize - minSize) * normalizedR;
+                    }
+
+                    if (shapeType === 'solid') {
+                        if (block.h === -1) { sx = sz = 0.8 * spaceH * scaleFactor; sy = 1.1 * spaceV * scaleFactor; } 
+                        else { sx = (currentRadius * angleStep) * 1.02 * scaleFactor; sy = 1.1 * spaceV * 1.02 * scaleFactor; sz = 0.8 * spaceH * 1.02 * scaleFactor; }
+                    } else {
+                        sx = sy = sz = scaleFactor;
+                        if(shapeType === 'plane') { sx *= 1.5; sy *= 1.5; }
+                    }
+                    dummy.scale.set(sx, sy, sz);
+                } else {
+                    dummy.scale.set(0, 0, 0);
+                }
+                dummy.updateMatrix();
+                instancedMesh.setMatrixAt(i, dummy.matrix);
+                instancedMesh.setColorAt(i, block.color);
+            });
+            instancedMesh.instanceMatrix.needsUpdate = true;
+            if(instancedMesh.instanceColor) instancedMesh.instanceColor.needsUpdate = true;
+        }
+
+        // --- INTERACTIVE TOOLS LOGIC ---
+        let currentTool = null; // null, 'eyedropper', 'gradient'
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let pointerDownPos = new THREE.Vector2();
+        
+        // Gradient State
+        let gradState = 0; 
+        let gradStartPos = new THREE.Vector3();
+        let gradEndPos = new THREE.Vector3();
+        let gradStartColor = new THREE.Color();
+        let gradEndColor = new THREE.Color();
+        let gradientLineMesh = null;
+        let lineDrawCount = 0;
+        let pathObjects = []; // Objects that the line passes through
+
+        // Tool Selection
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const selectedTool = e.target.dataset.tool;
+                
+                // Toggle logic
+                if (currentTool === selectedTool) {
+                    currentTool = null;
+                    e.target.classList.remove('active');
+                } else {
+                    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    currentTool = selectedTool;
+                }
+                
+                document.getElementById('eyedropper-panel').style.display = (currentTool === 'eyedropper') ? 'flex' : 'none';
+                document.getElementById('gradient-panel').style.display = (currentTool === 'gradient') ? 'flex' : 'none';
+                
+                if(currentTool === 'gradient') resetGradientTool();
+                else if(gradientLineMesh) { scene.remove(gradientLineMesh); gradientLineMesh = null; }
+            });
+        });
+
+        function clearInteractiveTools() {
+            if(gradientLineMesh) { scene.remove(gradientLineMesh); gradientLineMesh.geometry.dispose(); gradientLineMesh.material.dispose(); gradientLineMesh = null; }
+            resetGradientTool();
+            document.getElementById('eyedropper-panel').style.display = 'none';
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            currentTool = null;
+        }
+
+        function resetGradientTool() {
+            gradState = 0;
+            pathObjects = [];
+            document.getElementById('grad-instruction').innerText = "Click a color to set Point A";
+            document.getElementById('grad-step-1').classList.add('active');
+            document.getElementById('grad-step-2').classList.remove('active');
+            document.getElementById('grad-swatch-1').style.background = '#222';
+            document.getElementById('grad-swatch-2').style.background = '#222';
+            document.getElementById('grad-text-1').innerText = "Point A: Waiting...";
+            document.getElementById('grad-text-2').innerText = "Point B: Waiting...";
+            document.getElementById('gradient-result').style.background = '#222';
+            if(gradientLineMesh) { scene.remove(gradientLineMesh); gradientLineMesh = null; }
+        }
+
+        function calculateGradientPath() {
+            pathObjects = [];
+            const vecAB = new THREE.Vector3().subVectors(gradEndPos, gradStartPos);
+            const lenSq = vecAB.lengthSq();
+            
+            for(let i=0; i<blocksData.length; i++) {
+                const mat = new THREE.Matrix4();
+                instancedMesh.getMatrixAt(i, mat);
+                const scale = new THREE.Vector3().setFromMatrixScale(mat);
+                if(scale.x === 0) continue; // Ignore hidden blocks
+
+                const p = new THREE.Vector3().setFromMatrixPosition(mat);
+                const vecAP = new THREE.Vector3().subVectors(p, gradStartPos);
+                const t = vecAP.dot(vecAB) / lenSq;
+
+                // If point is between A and B
+                if(t > 0.05 && t < 0.95) {
+                    const proj = gradStartPos.clone().add(vecAB.clone().multiplyScalar(t));
+                    const dist = p.distanceTo(proj);
+                    // Threshold distance to consider it "on the path"
+                    if(dist < 1.5) {
+                        pathObjects.push({ pos: p, t: t, triggered: false, color: blocksData[i].color });
+                    }
+                }
+            }
+            // Sort by distance from A
+            pathObjects.sort((a,b) => a.t - b.t);
+        }
+
+        function drawGradientLine() {
+            if(gradientLineMesh) scene.remove(gradientLineMesh);
+            
+            const segments = 50;
+            const points = [];
+            const colors = [];
+            
+            for(let i=0; i<=segments; i++) {
+                const t = i / segments;
+                const p = new THREE.Vector3().lerpVectors(gradStartPos, gradEndPos, t);
+                points.push(p.x, p.y, p.z);
+                const c = new THREE.Color().lerpColors(gradStartColor, gradEndColor, t);
+                colors.push(c.r, c.g, c.b);
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            
+            const material = new THREE.LineBasicMaterial({ vertexColors: true, linewidth: 3 });
+            gradientLineMesh = new THREE.Line(geometry, material);
+            
+            lineDrawCount = 0;
+            gradientLineMesh.geometry.setDrawRange(0, lineDrawCount);
+            scene.add(gradientLineMesh);
+            
+            calculateGradientPath();
+        }
+
+        // Raycasting Logic
+        window.addEventListener('pointerdown', (e) => { pointerDownPos.set(e.clientX, e.clientY); });
+        window.addEventListener('pointerup', (e) => {
+            if(!currentTool) return; // No tool selected
+            if(new THREE.Vector2(e.clientX, e.clientY).distanceTo(pointerDownPos) > 5) return; // It was a camera drag
+
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(instancedMesh);
+
+            if(intersects.length > 0) {
+                const instanceId = intersects[0].instanceId;
+                const mat = new THREE.Matrix4();
+                instancedMesh.getMatrixAt(instanceId, mat);
+                
+                const scale = new THREE.Vector3().setFromMatrixScale(mat);
+                if(scale.x === 0) return; 
+
+                const pos = new THREE.Vector3().setFromMatrixPosition(mat);
+                const block = blocksData[instanceId];
+                const hexColor = '#' + block.color.getHexString();
+                const munsellText = getMunsellNotation(block.hueDeg, block.v, block.c);
+
+                createHalo(pos, block.color);
+
+                if(currentTool === 'eyedropper') {
+                    document.getElementById('eye-swatch').style.backgroundColor = hexColor;
+                    document.getElementById('eye-munsell').innerText = munsellText;
+                    document.getElementById('eye-rgb').innerText = `HEX: ${hexColor.toUpperCase()}`;
+                } 
+                else if(currentTool === 'gradient') {
+                    if(gradState === 0) {
+                        gradStartPos.copy(pos);
+                        gradStartColor.copy(block.color);
+                        document.getElementById('grad-swatch-1').style.backgroundColor = hexColor;
+                        document.getElementById('grad-text-1').innerText = munsellText;
+                        document.getElementById('grad-step-1').classList.remove('active');
+                        document.getElementById('grad-step-2').classList.add('active');
+                        document.getElementById('grad-instruction').innerText = "Click another color to set Point B";
+                        if(gradientLineMesh) { scene.remove(gradientLineMesh); gradientLineMesh = null; }
+                        gradState = 1;
+                    } else {
+                        gradEndPos.copy(pos);
+                        gradEndColor.copy(block.color);
+                        document.getElementById('grad-swatch-2').style.backgroundColor = hexColor;
+                        document.getElementById('grad-text-2').innerText = munsellText;
+                        document.getElementById('grad-step-2').classList.remove('active');
+                        document.getElementById('grad-instruction').innerText = "Gradient Vector Created!";
+                        
+                        const hex1 = '#' + gradStartColor.getHexString();
+                        const hex2 = '#' + gradEndColor.getHexString();
+                        document.getElementById('gradient-result').style.background = `linear-gradient(to right, ${hex1}, ${hex2})`;
+                        
+                        drawGradientLine();
+                        gradState = 0; 
+                        setTimeout(() => { document.getElementById('grad-step-1').classList.add('active'); document.getElementById('grad-instruction').innerText = "Click to start a new gradient"; }, 2000);
+                    }
+                }
+            }
+        });
+
+        // --- INITIALIZATION & EVENTS ---
+        generateMunsellData();
+        createMesh();
+
+        document.getElementById('shape-select').addEventListener('change', createMesh);
+        document.getElementById('density').addEventListener('change', (e) => {
+            document.getElementById('lbl-density').innerText = e.target.value;
+            document.getElementById('slice-h').value = -1;
+            document.getElementById('lbl-h').innerText = "All";
+            generateMunsellData(); createMesh();
+        });
+
+        document.getElementById('radial-scale').addEventListener('change', (e) => {
+            document.getElementById('size-controls-normal').style.display = e.target.checked ? 'none' : 'block';
+            document.getElementById('size-controls-radial').style.display = e.target.checked ? 'block' : 'none';
+            updateInstances();
+        });
+
+        ['size-base', 'size-min', 'size-max', 'spacing-h', 'spacing-v'].forEach(id => {
+            document.getElementById(id).addEventListener('input', (e) => {
+                document.getElementById(`lbl-${id.replace('ing', 'e')}`).innerText = parseFloat(e.target.value).toFixed(1) + 'x';
+                updateInstances();
+            });
+        });
+
+        ['v', 'h', 'c'].forEach(id => {
+            document.getElementById(`slice-${id}`).addEventListener('input', (e) => {
+                let val = parseInt(e.target.value);
+                let label = val === 0 || val === -1 ? "All" : (id === 'h' ? `Slices ${val} and ${(val + (totalHues / 2)) % totalHues}` : val);
+                document.getElementById(`lbl-${id}`).innerText = label;
+                updateInstances();
+            });
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            document.getElementById('shape-select').value = 'solid';
+            document.getElementById('density').value = 40;
+            document.getElementById('radial-scale').checked = false;
+            document.getElementById('size-base').value = 1.0;
+            document.getElementById('size-min').value = 0.3;
+            document.getElementById('size-max').value = 1.5;
+            document.getElementById('spacing-h').value = 1.0;
+            document.getElementById('spacing-v').value = 1.0;
+            document.getElementById('slice-v').value = 0;
+            document.getElementById('slice-h').value = -1;
+            document.getElementById('slice-c').value = 0;
+            
+            document.getElementById('radial-scale').dispatchEvent(new Event('change'));
+            ['size-base', 'size-min', 'size-max', 'spacing-h', 'spacing-v'].forEach(id => document.getElementById(id).dispatchEvent(new Event('input')));
+            
+            document.getElementById('lbl-density').innerText = "40";
+            document.getElementById('lbl-v').innerText = "All";
+            document.getElementById('lbl-h').innerText = "All";
+            document.getElementById('lbl-c').innerText = "All";
+            
+            generateMunsellData(); createMesh(); clearInteractiveTools();
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // --- ANIMATION LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            
+            scene.children.forEach(child => { if (child.isPoints) child.rotation.y += 0.00015; });
+
+// Animação do Halo (Brilho)
+for(let i = activeHalos.length - 1; i >= 0; i--) {
+    let h = activeHalos[i];
+    
+    // AUMENTE este valor para fazer o halo sumir mais rápido.
+    // 0.05 a 0.08 fará com que ele pareça um "piscar" rápido, evitando o efeito laser.
+    h.life -= 0.06; 
+    
+    // DIMINUA o multiplicador para que ele não vaze para os blocos vizinhos.
+    // Exemplo: Começa em 0.8 e cresce no máximo até 1.2
+    let scale = 0.8 + (1 - h.life) * 0.4; 
+    
+    h.mesh.scale.set(scale, scale, scale);
+    h.mesh.material.opacity = h.life;
+    
+    if(h.life <= 0) { 
+        scene.remove(h.mesh); 
+        activeHalos.splice(i, 1); 
+    }
+}
+
+            // Animação da Linha de Gradiente e Halos no caminho
+            if(gradientLineMesh && lineDrawCount < 50) {
+                lineDrawCount += 1;
+                gradientLineMesh.geometry.setDrawRange(0, lineDrawCount);
+                
+                const currentT = lineDrawCount / 50;
+                pathObjects.forEach(obj => {
+                    if(!obj.triggered && obj.t <= currentT) {
+                        createHalo(obj.pos, obj.color);
+                        obj.triggered = true;
+                    }
+                });
+            }
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+    </script>
+</body>
+</html>
