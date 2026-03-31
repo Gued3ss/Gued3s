@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MIDI to Printable Piano Roll</title>
+  
+  <script src="https://unpkg.com/@tonejs/midi"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tonal/browser/tonal.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <style>
+    :root {
+      --bg-dark: #0f172a; --bg-panel: #1e293b; --border: #334155;
+      --text-main: #f8fafc; --text-muted: #94a3b8;
+      --accent: #3b82f6; --accent-hover: #2563eb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace, sans-serif; }
+    body { background-color: var(--bg-dark); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    
+    #top-bar { height: 10%; min-height: 70px; background: var(--bg-panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 15px; }
+    #main-area { display: flex; height: 90%; }
+    #left-panel { width: 35%; background: var(--bg-panel); border-right: 1px solid var(--border); padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+    #right-panel { width: 65%; background: #020617; display: flex; flex-direction: column; overflow: hidden; }
+    
+    .dropzone { flex: 1; border: 2px dashed var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; color: var(--text-muted); height: 100%; }
+    .dropzone:hover, .dropzone.dragover { border-color: var(--accent); background: rgba(59, 130, 246, 0.1); color: var(--accent); }
+    button { background: var(--accent); color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+    button:hover { background: var(--accent-hover); }
+    button:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
+    
+    .control-group { display: flex; flex-direction: column; gap: 5px; }
+    .row { display: flex; gap: 10px; }
+    .row > div { flex: 1; }
+    label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: bold; }
+    input, select, textarea { background: var(--bg-dark); border: 1px solid var(--border); color: white; padding: 8px; border-radius: 4px; outline: none; font-family: monospace; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 120px; font-size: 11px; }
+    
+    #viewer-header { padding: 10px; background: var(--bg-panel); border-bottom: 1px solid var(--border); display: flex; justify-content: center; align-items: center; gap: 15px; }
+    #svg-container { flex: 1; overflow: auto; padding: 20px; display: flex; justify-content: center; align-items: flex-start; }
+    #svg-container svg { background: #F4F4F0; box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 100%; height: auto; }
+    
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg-dark); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+  <div id="top-bar">
+    <div id="dropzone" class="dropzone">
+      <span id="dropzone-text">Arraste um arquivo .mid aqui ou clique</span>
+      <input type="file" id="file-input" accept=".mid,.midi" style="display: none;">
+    </div>
+    <div id="file-info" style="font-size: 12px; color: var(--text-muted);">Nenhum arquivo</div>
+    <button id="btn-export" disabled>📄 Exportar PDF</button>
+  </div>
+
+  <div id="main-area">
+    <div id="left-panel">
+      <div class="row">
+        <div class="control-group">
+          <label>Fórmula de Compasso</label>
+          <input type="text" id="input-timesig" value="12/8">
+        </div>
+        <div class="control-group">
+          <label>Compassos / Página</label>
+          <input type="number" id="input-bars" value="4" min="1" max="16">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="control-group">
+          <label>Faixa MIDI</label>
+          <select id="select-track"><option value="">Carregue um MIDI</option></select>
+        </div>
+        <div class="control-group">
+          <label title="Deixe em branco para Automático">Offset (Anacruse)</label>
+          <input type="number" id="input-offset" placeholder="Auto" step="0.5">
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>Agrupamento por Pulso (Acordes)</label>
+        <select id="select-pulse">
+          <option value="true">Ativado (Caixas + Acordes)</option>
+          <option value="false">Desativado</option>
+        </select>
+      </div>
+
+      <!-- CONSOLE DE SNIPPETS -->
+      <div class="control-group" style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 15px;">
+        <label style="color: #fbbf24;">⚡ Console de Snippets (JS)</label>
+        <textarea id="snippet-code" placeholder="Escreva seus hooks aqui..."></textarea>
+        <button id="btn-apply-snippet" style="background: #d97706;">Aplicar Snippet e Recalcular</button>
+      </div>
+
+    </div>
+
+    <div id="right-panel">
+      <div id="viewer-header">
+        <button id="btn-prev" disabled>◀</button>
+        <span id="page-indicator">Página 0 de 0</span>
+        <button id="btn-next" disabled>▶</button>
+      </div>
+      <div id="svg-container">
+        <div style="color: var(--text-muted); margin-top: 50px;">O Piano Roll aparecerá aqui.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- SISTEMA DE HOOKS (Para o Console de Snippets) ---
+    // O usuário pode sobrescrever essas funções pelo console
+    window.Hooks = {
+      // Recebe um array de notas e retorna o nome do acorde (String)
+      detectChord: function(notesInPulse) {
+        const pitchClasses = [...new Set(notesInPulse.map(n => window.Tonal.Note.pitchClass(noteNameSharp(n.midi))))];
+        if (pitchClasses.length >= 2) {
+          const bassNote = notesInPulse.reduce((a, b) => a.midi < b.midi ? a : b);
+          const bassPc = window.Tonal.Note.pitchClass(noteNameSharp(bassNote.midi));
+          const sortedPcs = [bassPc, ...pitchClasses.filter(pc => pc !== bassPc)];
+          const detected = window.Tonal.Chord.detect(sortedPcs);
+          if (detected.length > 0) return detected[0];
+        }
+        return '';
+      },
+      // Permite customizar a cor/estilo da caixa de pulso
+      formatPulseBox: function(pg, gx1, gy1, width, height) {
+        // Retorna a string SVG do retângulo
+        return `<rect x="${gx1}" y="${gy1}" width="${width}" height="${height}" fill="none" stroke="#ef4444" stroke-width="1.5" rx="0"/>`;
+      }
+    };
+
+    // --- ESTADO GLOBAL ---
+    window.state = {
+      midi: null, fileName: '', tracks: [], selectedTrackIdx: 0,
+      timeSigNum: 12, timeSigDen: 8, barsPerPage: 4, showPulseGroups: true,
+      pages: [], currentPage: 0
+    };
+
+    const PAGE_W = 794; const PAGE_H = 1123; const PIANO_H = 60; 
+    const MARGIN = { top: 30, bottom: 30, left: 40, right: 20 };
+    const ROLL_X = MARGIN.left; const ROLL_Y = MARGIN.top + PIANO_H;
+    const ROLL_W = PAGE_W - MARGIN.left - MARGIN.right; const ROLL_H = PAGE_H - ROLL_Y - MARGIN.bottom;
+
+    const isBlackKey = (midi) => [1, 3, 6, 8, 10].includes(midi % 12);
+    const noteName = (midi) => { const f = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']; return f[midi % 12] + (Math.floor(midi / 12) - 1); };
+    const noteNameSharp = (midi) => { const s = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']; return s[midi % 12] + (Math.floor(midi / 12) - 1); };
+    const whiteKeyIndex = (midi) => {
+      const wP = [0, 2, 4, 5, 7, 9, 11]; const oct = Math.floor(midi / 12); const pc = midi % 12;
+      let c = oct * 7; for (const w of wP) { if (w < pc) c++; else if (w === pc) break; } return c;
+    };
+
+    function processMidi(buffer, filename) {
+      try {
+        const midi = new window.Midi(buffer);
+        window.state.midi = midi; window.state.fileName = filename;
+        window.state.tracks = midi.tracks.filter(t => t.notes.length > 0).map((t, i) => {
+          const notes = t.notes.map(n => ({
+            midi: n.midi, name: noteName(n.midi),
+            time: n.ticks / midi.header.ppq, duration: n.durationTicks / midi.header.ppq
+          }));
+          const midis = notes.map(n => n.midi);
+          return { name: t.name || `Track ${i + 1}`, notes, minMidi: Math.min(...midis), maxMidi: Math.max(...midis) };
+        });
+
+        if(window.state.tracks.length > 0) {
+          window.state.selectedTrackIdx = 0;
+          updateTrackSelect(); recalculatePages();
+        } else alert("Nenhuma nota encontrada.");
+      } catch (error) { console.error(error); alert("Erro ao ler o arquivo MIDI."); }
+    }
+
+    function recalculatePages() {
+      if (!window.state.midi || window.state.tracks.length === 0) return;
+
+      const track = window.state.tracks[window.state.selectedTrackIdx];
+      const beatsPerBar = (window.state.timeSigNum * 4) / window.state.timeSigDen;
+      
+      let pulsesPerBar = window.state.timeSigNum;
+      if (window.state.timeSigDen === 8 && window.state.timeSigNum % 3 === 0) pulsesPerBar = window.state.timeSigNum / 3;
+      const beatsPerPulse = beatsPerBar / pulsesPerBar;
+
+      // 1. Cálculo do Offset (Anacruse)
+      const manualOffset = parseFloat(document.getElementById('input-offset').value);
+      let firstBeat = Math.min(...track.notes.map(n => n.time));
+      let pickupBeats = isNaN(manualOffset) ? (firstBeat % beatsPerBar) : manualOffset;
+      if (pickupBeats < 0.001) pickupBeats = 0;
+      const hasPickup = pickupBeats > 0.001;
+
+      // 2. Slicing das notas (Corte nas barras de compasso)
+      const slicedNotes = [];
+      const barOf = (beat) => {
+        if (hasPickup && beat < pickupBeats) return 0;
+        return Math.floor((beat - pickupBeats) / beatsPerBar) + (hasPickup ? 1 : 0);
+      };
+      const barStartBeat = (bar) => {
+        if (bar === 0 && hasPickup) return 0;
+        return pickupBeats + (hasPickup ? bar - 1 : bar) * beatsPerBar;
+      };
+
+      track.notes.forEach(note => {
+        const startBar = barOf(note.time);
+        const endBar = barOf(note.time + note.duration - 0.001);
+        if (startBar === endBar) {
+          slicedNotes.push({...note, isCont: false});
+        } else {
+          for (let b = startBar; b <= endBar; b++) {
+            const bStart = barStartBeat(b); const bEnd = barStartBeat(b + 1);
+            const sStart = Math.max(note.time, bStart); const sEnd = Math.min(note.time + note.duration, bEnd);
+            if (sEnd - sStart > 0.001) slicedNotes.push({...note, time: sStart, duration: sEnd - sStart, isCont: b > startBar});
+          }
+        }
+      });
+
+      // 3. Lógica de Paginação Corrigida (Anacruse não ocupa slot de compasso real)
+      const lastBeat = Math.max(...track.notes.map(n => n.time + n.duration));
+      const totalBars = hasPickup 
+        ? 1 + Math.ceil((lastBeat - pickupBeats) / beatsPerBar) 
+        : Math.max(1, Math.ceil(lastBeat / beatsPerBar));
+      
+      const barsToDistribute = hasPickup ? (totalBars - 1) : totalBars;
+      const totalPages = Math.ceil(barsToDistribute / window.state.barsPerPage);
+      
+      window.state.pages = [];
+
+      let minM = Math.floor(Math.max(0, track.minMidi - 2) / 12) * 12;
+      let maxM = Math.ceil(Math.min(127, track.maxMidi + 2) / 12) * 12 - 1;
+
+      for (let p = 0; p < totalPages; p++) {
+        // Se tem pickup, a pág 0 inclui o compasso 0 + os compassos definidos.
+        // Ex: 2 compassos por pág -> Pág 0 tem [0, 1, 2]. Pág 1 tem [3, 4].
+        let pBarStart, pBarEnd;
+        if (hasPickup) {
+          pBarStart = p * window.state.barsPerPage + (p > 0 ? 1 : 0);
+          pBarEnd = (p + 1) * window.state.barsPerPage + 1;
+        } else {
+          pBarStart = p * window.state.barsPerPage;
+          pBarEnd = (p + 1) * window.state.barsPerPage;
+        }
+        pBarEnd = Math.min(pBarEnd, totalBars);
+
+        const pBeatStart = barStartBeat(pBarStart);
+        const pBeatEnd = barStartBeat(pBarEnd);
+        const pNotes = slicedNotes.filter(n => n.time < pBeatEnd - 0.001 && n.time + n.duration > pBeatStart + 0.001);
+
+        const pulseGroups = [];
+        if (window.state.showPulseGroups) {
+          for (let b = pBarStart; b < pBarEnd; b++) {
+            const bBeat = barStartBeat(b);
+            const bPulses = (b === 0 && hasPickup) ? Math.ceil(pickupBeats / beatsPerPulse) : pulsesPerBar;
+            
+            for (let pulse = 0; pulse < bPulses; pulse++) {
+              const pStart = bBeat + pulse * beatsPerPulse;
+              const pEnd = pStart + beatsPerPulse;
+              const notesInPulse = pNotes.filter(n => n.time < pEnd - 0.001 && n.time + n.duration > pStart + 0.001);
+              if (notesInPulse.length === 0) continue;
+
+              const minMidiPulse = Math.min(...notesInPulse.map(n => n.midi));
+              const maxMidiPulse = Math.max(...notesInPulse.map(n => n.midi));
+              
+              // Hook de detecção de acordes
+              let chordName = window.Hooks.detectChord(notesInPulse);
+
+              pulseGroups.push({ beatStart: pStart, beatEnd: pEnd, minMidi: minMidiPulse, maxMidi: maxMidiPulse, chordName });
+            }
+          }
+        }
+
+        window.state.pages.push({
+          pageIndex: p, totalPages, pBeatStart, pBeatEnd, pNotes, pulseGroups, minM, maxM,
+          bars: Array.from({length: pBarEnd - pBarStart}, (_, i) => barStartBeat(pBarStart + i))
+        });
+      }
+
+      window.state.currentPage = 0;
+      renderCurrentPage();
+    }
+
+    function renderCurrentPage() {
+      const container = document.getElementById('svg-container');
+      if (window.state.pages.length === 0) {
+        container.innerHTML = '<div style="color: #94a3b8; margin-top: 50px;">Nenhuma página gerada.</div>';
+        document.getElementById('btn-export').disabled = true; return;
+      }
+
+      document.getElementById('btn-export').disabled = false;
+      const page = window.state.pages[window.state.currentPage];
+      
+      document.getElementById('page-indicator').innerText = `Página ${window.state.currentPage + 1} de ${page.totalPages}`;
+      document.getElementById('btn-prev').disabled = window.state.currentPage === 0;
+      document.getElementById('btn-next').disabled = window.state.currentPage === page.totalPages - 1;
+
+      const totalWhite = (() => { let c = 0; for(let m=page.minM; m<=page.maxM; m++) if(!isBlackKey(m)) c++; return c; })();
+      const whiteW = ROLL_W / totalWhite;
+      const firstWhite = whiteKeyIndex(page.minM);
+
+      const whiteX = (midi) => ROLL_X + (totalWhite - 1 - (whiteKeyIndex(midi) - firstWhite)) * whiteW;
+      const blackX = (midi) => {
+        let lo = midi - 1; while(isBlackKey(lo) && lo >= page.minM) lo--;
+        let hi = midi + 1; while(isBlackKey(hi) && hi <= page.maxM) hi++;
+        const loX = lo >= page.minM ? whiteX(lo) : ROLL_X + (totalWhite - 1) * whiteW;
+        const hiX = hi <= page.maxM ? whiteX(hi) : ROLL_X;
+        return ((hiX + whiteW + loX) / 2) - (whiteW * 0.65) / 2;
+      };
+
+      const noteX = (midi) => isBlackKey(midi) ? blackX(midi) : whiteX(midi);
+      const noteW = (midi) => isBlackKey(midi) ? whiteW * 0.65 : whiteW;
+
+      const pageTotalBeats = page.pBeatEnd - page.pBeatStart;
+      const beatY = (beat) => ROLL_Y + ((beat - page.pBeatStart) / pageTotalBeats) * ROLL_H;
+
+      let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${PAGE_W}" height="${PAGE_H}" viewBox="0 0 ${PAGE_W} ${PAGE_H}" style="background:#F4F4F0;">`;
+      
+      for(let m=page.minM; m<=page.maxM; m++) if(!isBlackKey(m)) svg += `<rect x="${noteX(m)}" y="${ROLL_Y}" width="${whiteW}" height="${ROLL_H}" fill="#FFFFFF"/>`;
+      for(let m=page.minM; m<=page.maxM; m++) if(isBlackKey(m)) svg += `<rect x="${noteX(m)}" y="${ROLL_Y}" width="${noteW(m)}" height="${ROLL_H}" fill="#E3E3DC"/>`;
+
+      page.bars.forEach((bBeat) => {
+        const y = beatY(bBeat);
+        svg += `<line x1="${ROLL_X}" y1="${y}" x2="${ROLL_X+ROLL_W}" y2="${y}" stroke="#999" stroke-width="1.5"/>`;
+      });
+
+      page.pulseGroups.forEach(pg => {
+        const gx1 = noteX(pg.maxMidi); 
+        const gx2 = noteX(pg.minMidi) + noteW(pg.minMidi); 
+        const gy1 = beatY(pg.beatStart);
+        const gy2 = beatY(pg.beatEnd);
+        
+        // CHAMA O HOOK CUSTOMIZÁVEL DO USUÁRIO PARA DESENHAR A CAIXA
+        svg += window.Hooks.formatPulseBox(pg, gx1, gy1, gx2-gx1, gy2-gy1);
+
+        if(pg.chordName) {
+          svg += `<text x="${gx1 + (gx2-gx1)/2}" y="${gy1 - 3}" font-size="10" fill="#92400E" text-anchor="middle" font-weight="bold">${pg.chordName}</text>`;
+        }
+      });
+
+      page.pNotes.forEach(n => {
+        const isB = isBlackKey(n.midi);
+        const x = noteX(n.midi) + (isB ? 1 : 0); 
+        const w = Math.max(2, noteW(n.midi) - (isB ? 2 : 1)); 
+        const y = beatY(n.time);
+        const h = Math.max(2, beatY(n.time + n.duration) - y - 1);
+        
+        const fill = isB ? '#1F2937' : '#8E9BA8';
+        const textFill = isB ? '#FFFFFF' : '#000000';
+
+        svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}" rx="2"/>`;
+        
+        // CORREÇÃO: Limites menores para garantir que o texto apareça nas teclas pretas
+        if(h > 8 && w > 6) {
+          const fSize = isB ? 6 : 8; // Fonte menor para teclas pretas
+          svg += `<text x="${x + w/2}" y="${y + h/2 + (fSize/3)}" font-size="${fSize}" fill="${textFill}" text-anchor="middle" font-weight="${isB?'bold':'normal'}">${n.name}</text>`;
+        }
+      });
+
+      svg += `<rect x="${ROLL_X}" y="${MARGIN.top}" width="${ROLL_W}" height="${PIANO_H}" fill="#FFF" stroke="#888"/>`;
+      for(let m=page.minM; m<=page.maxM; m++) {
+        if(!isBlackKey(m)) {
+          svg += `<rect x="${noteX(m)}" y="${MARGIN.top}" width="${whiteW}" height="${PIANO_H}" fill="#FFF" stroke="#888" stroke-width="0.5"/>`;
+          if(m%12===0) svg += `<text x="${noteX(m)+whiteW/2}" y="${MARGIN.top+PIANO_H-5}" font-size="8" fill="#555" text-anchor="middle">${noteName(m)}</text>`;
+        }
+      }
+      for(let m=page.minM; m<=page.maxM; m++) {
+        if(isBlackKey(m)) svg += `<rect x="${noteX(m)}" y="${MARGIN.top}" width="${noteW(m)}" height="${PIANO_H*0.6}" fill="#1A1A1A" rx="2"/>`;
+      }
+
+      svg += `<rect x="${ROLL_X}" y="${ROLL_Y}" width="${ROLL_W}" height="${ROLL_H}" fill="none" stroke="#888" stroke-width="1.5"/>`;
+      svg += `</svg>`;
+      
+      container.innerHTML = svg;
+    }
+
+    async function exportPDF() {
+      const btn = document.getElementById('btn-export');
+      btn.innerText = "Gerando..."; btn.disabled = true;
+
+      try {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [PAGE_W, PAGE_H] });
+        const originalPage = window.state.currentPage;
+
+        for (let i = 0; i < window.state.pages.length; i++) {
+          window.state.currentPage = i; renderCurrentPage(); 
+          const svgElement = document.querySelector('#svg-container svg');
+          const svgData = new XMLSerializer().serializeToString(svgElement);
+          
+          const canvas = document.createElement('canvas');
+          canvas.width = PAGE_W * 2; canvas.height = PAGE_H * 2;
+          const ctx = canvas.getContext('2d'); ctx.scale(2, 2);
+
+          const img = new Image();
+          const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+          const url = URL.createObjectURL(svgBlob);
+          
+          await new Promise((resolve, reject) => {
+            img.onload = () => {
+              ctx.drawImage(img, 0, 0, PAGE_W, PAGE_H);
+              URL.revokeObjectURL(url);
+              if (i > 0) pdf.addPage([PAGE_W, PAGE_H], 'portrait');
+              pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, PAGE_W, PAGE_H);
+              resolve();
+            };
+            img.onerror = reject; img.src = url;
+          });
+        }
+        pdf.save(`${window.state.fileName.replace('.mid','')}_PianoRoll.pdf`);
+        window.state.currentPage = originalPage; renderCurrentPage();
+      } catch (error) { console.error(error); alert("Erro ao gerar o PDF."); } 
+      finally { btn.innerText = "📄 Exportar PDF"; btn.disabled = false; }
+    }
+
+    // --- EVENT LISTENERS ---
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('file-input');
+
+    dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault(); dropzone.classList.remove('dragover');
+      if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', (e) => { if(e.target.files.length) handleFile(e.target.files[0]); });
+
+    function handleFile(file) {
+      document.getElementById('file-info').innerText = file.name;
+      const reader = new FileReader();
+      reader.onload = function(e) { processMidi(e.target.result, file.name); };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function updateTrackSelect() {
+      const sel = document.getElementById('select-track');
+      sel.innerHTML = window.state.tracks.map((t, i) => `<option value="${i}">${t.name} (${t.notes.length} notas)</option>`).join('');
+      sel.value = window.state.selectedTrackIdx;
+    }
+
+    document.getElementById('input-timesig').addEventListener('change', (e) => {
+      const parts = e.target.value.split('/');
+      if(parts.length === 2) { window.state.timeSigNum = parseInt(parts[0]); window.state.timeSigDen = parseInt(parts[1]); recalculatePages(); }
+    });
+    document.getElementById('input-bars').addEventListener('change', (e) => { window.state.barsPerPage = parseInt(e.target.value); recalculatePages(); });
+    document.getElementById('input-offset').addEventListener('change', () => recalculatePages());
+    document.getElementById('select-track').addEventListener('change', (e) => { window.state.selectedTrackIdx = parseInt(e.target.value); recalculatePages(); });
+    document.getElementById('select-pulse').addEventListener('change', (e) => { window.state.showPulseGroups = e.target.value === 'true'; recalculatePages(); });
+
+    document.getElementById('btn-prev').addEventListener('click', () => { if(window.state.currentPage > 0) { window.state.currentPage--; renderCurrentPage(); } });
+    document.getElementById('btn-next').addEventListener('click', () => { if(window.state.currentPage < window.state.pages.length - 1) { window.state.currentPage++; renderCurrentPage(); } });
+    document.getElementById('btn-export').addEventListener('click', exportPDF);
+
+    // --- LÓGICA DO CONSOLE DE SNIPPETS ---
+    document.getElementById('btn-apply-snippet').addEventListener('click', () => {
+      const code = document.getElementById('snippet-code').value;
+      try {
+        const userFunc = new Function(code);
+        userFunc(); // Executa o código do usuário
+        recalculatePages(); // Re-renderiza com as novas regras
+        alert("Snippet aplicado com sucesso!");
+      } catch (e) {
+        alert("Erro no seu código JS:\n" + e.message);
+      }
+    });
+
+  </script>
+</body>
+</html>
